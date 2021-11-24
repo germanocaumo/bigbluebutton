@@ -141,6 +141,7 @@ const ChatContainer = (props) => {
     : intl.formatMessage(intlMessages.titlePublic);
 
   let partnerIsLoggedOut = false;
+  let lastReadByPartnerMessageTime = 0;
 
   let isChatLocked;
   if (!isPublicChat) {
@@ -148,6 +149,7 @@ const ChatContainer = (props) => {
     partnerIsLoggedOut = !!(users[Auth.meetingID][idUser]?.loggedOut
       || users[Auth.meetingID][idUser]?.ejected);
     isChatLocked = isChatLockedPrivate && !(users[Auth.meetingID][idUser]?.role === ROLE_MODERATOR);
+    lastReadByPartnerMessageTime = groupChat[idChatOpen]?.lastReadTimestamps?.[idUser];
   } else {
     isChatLocked = isChatLockedPublic;
   }
@@ -240,6 +242,7 @@ const ChatContainer = (props) => {
       layoutContextDispatch,
       lastTimeWindowValuesBuild,
       partnerIsLoggedOut,
+      lastReadByPartnerMessageTime,
     }}
     >
       {children}

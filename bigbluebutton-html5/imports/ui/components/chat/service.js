@@ -225,6 +225,23 @@ const updateUnreadMessage = (timestamp, idChatOpen) => {
   return UnreadMessages.update(chatType, timestamp);
 };
 
+const isMessageReadFeedbackEnabled = () => CHAT_CONFIG.enabled && CHAT_CONFIG.privateMessageReadFeedback;
+
+const updateLastReadByPartnerTime = (timestamp, idChatOpen) => {
+  const chatID = idChatOpen;
+  const isPublic = chatID === PUBLIC_CHAT_ID;
+
+  if (!isPublic && isMessageReadFeedbackEnabled()) {
+    const privateChat = GroupChat.findOne({ chatId: idChatOpen },
+      { fields: { lastReadTimestamps: 1 } });
+
+    if (privateChat && privateChat.lastReadTimestamps[Auth.userID] < timestamp) {
+      privateChat.lastReadTimestamps[Auth.userID] = timestamp;
+      makeCall('setGroupChatLastReadTimestamp', Auth.meetingID, idChatOpen, privateChat.lastReadTimestamps)
+    }
+  }
+};
+
 const clearPublicChatHistory = () => (makeCall('clearPublicChatHistory'));
 
 const closePrivateChat = (chatId) => {
@@ -333,6 +350,8 @@ export default {
   getWelcomeProp,
   getScrollPosition,
   lastReadMessageTime,
+  isMessageReadFeedbackEnabled,
+  updateLastReadByPartnerTime,
   isChatLocked,
   updateScrollPosition,
   updateUnreadMessage,

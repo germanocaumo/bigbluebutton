@@ -25,6 +25,7 @@
     "app.chat.multi.typing": "Múltiplos usuários estão digitando",
     "app.chat.one.typing": "{0} está digitando",
     "app.chat.two.typing": "{0} e {1} estão digitando",
+    "app.chat.messageRead": "Mensagem lida pelo destinatário",
     "app.captions.label": "Legendas",
     "app.captions.menu.close": "Fechar",
     "app.captions.menu.start": "Iniciar",

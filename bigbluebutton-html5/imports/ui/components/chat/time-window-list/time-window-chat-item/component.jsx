@@ -8,6 +8,7 @@ import ChatLogger from '/imports/ui/components/chat/chat-logger/ChatLogger';
 import MessageChatItem from './message-chat-item/component';
 import PollService from '/imports/ui/components/poll/service';
 import Icon from '/imports/ui/components/icon/component';
+import Tooltip from '/imports/ui/components/tooltip/component';
 import { styles } from './styles';
 
 const CHAT_CONFIG = Meteor.settings.public.chat;
@@ -32,12 +33,16 @@ const propTypes = {
   chatAreaId: PropTypes.string.isRequired,
   handleReadMessage: PropTypes.func.isRequired,
   lastReadMessageTime: PropTypes.number,
+  lastReadByPartnerMessageTime: PropTypes.number,
+  isMessageReadFeedbackEnabled: PropTypes.bool,
 };
 
 const defaultProps = {
   user: null,
   scrollArea: null,
   lastReadMessageTime: 0,
+  lastReadByPartnerMessageTime: 0,
+  isMessageReadFeedbackEnabled: false,
   timestamp: 0,
 };
 
@@ -53,7 +58,11 @@ const intlMessages = defineMessages({
   [CHAT_CLEAR_MESSAGE]: {
     id: 'app.chat.clearPublicChatMessage',
     description: 'message of when clear the public chat',
-  }
+  },
+  messageReadLabel: {
+    id: 'app.chat.messageRead',
+    description: 'Message read tooltip label',
+  },
 });
 
 class TimeWindowChatItem extends PureComponent {
@@ -119,6 +128,10 @@ class TimeWindowChatItem extends PureComponent {
       dispatch,
       chatId,
       read,
+      isFromMe,
+      lastReadByPartnerMessageTime,
+      isMessageReadFeedbackEnabled,
+      updateLastReadByPartnerTime,
       name,
       color,
       isModerator,
@@ -132,6 +145,11 @@ class TimeWindowChatItem extends PureComponent {
     const defaultAvatarString = name?.toLowerCase().slice(0, 2) || "  ";
     const emphasizedTextClass = isModerator && CHAT_EMPHASIZE_TEXT && chatId === CHAT_PUBLIC_ID ?
       styles.emphasizedMessage : null;
+    const shouldRenderPrivateMessageReadFeedback =
+      isMessageReadFeedbackEnabled && 
+      chatId !== CHAT_PUBLIC_ID &&
+      isFromMe && 
+      lastReadByPartnerMessageTime >= messages[messages.length - 1].time;
 
     return (
       <div className={styles.item} key={`time-window-${messageKey}`}>
@@ -161,6 +179,14 @@ class TimeWindowChatItem extends PureComponent {
               <time className={styles.time} dateTime={dateTime}>
                 <FormattedTime value={dateTime} />
               </time>
+              {shouldRenderPrivateMessageReadFeedback
+                && ( 
+                    <Tooltip
+                      title={intl.formatMessage(intlMessages.messageReadLabel)}
+                    >
+                      <Icon className={styles.read} iconName="message_read" />
+                    </Tooltip>
+                )}
             </div>
             <div className={styles.messages}>
               {messages.map(message => (
@@ -184,6 +210,7 @@ class TimeWindowChatItem extends PureComponent {
                           timestamp,
                         },
                       });
+                      updateLastReadByPartnerTime(timestamp);
                     }
                   }}
                   scrollArea={scrollArea}

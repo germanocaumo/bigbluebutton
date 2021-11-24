@@ -194,6 +194,7 @@ class TimeWindowList extends PureComponent {
       timeWindowsValues,
       dispatch,
       chatId,
+      lastReadByPartnerMessageTime,
     } = this.props;
 
     const { scrollArea } = this.state;
@@ -220,6 +221,7 @@ class TimeWindowList extends PureComponent {
             scrollArea={scrollArea}
             dispatch={dispatch}
             chatId={chatId}
+            lastReadByPartnerMessageTime={lastReadByPartnerMessageTime}
           />
         </span>
       </CellMeasurer>

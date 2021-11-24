@@ -27,6 +27,7 @@
     "app.chat.two.typing": "{0} and {1} are typing",
     "app.chat.copySuccess": "Copied chat transcript",
     "app.chat.copyErr": "Copy chat transcript failed",
+    "app.chat.messageRead": "Message read by the recipient",
     "app.captions.label": "Captions",
     "app.captions.menu.close": "Close",
     "app.captions.menu.start": "Start",

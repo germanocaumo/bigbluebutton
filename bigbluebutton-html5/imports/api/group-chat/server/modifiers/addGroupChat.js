@@ -3,6 +3,9 @@ import { Match, check } from 'meteor/check';
 import Logger from '/imports/startup/server/logger';
 import GroupChat from '/imports/api/group-chat';
 
+const PRIVATE_MESSAGE_READ_FEEDBACK_ENABLED = Meteor.settings.public.chat.privateMessageReadFeedback;
+const TYPE_PRIVATE = Meteor.settings.public.chat.type_private;
+
 export default function addGroupChat(meetingId, chat) {
   check(meetingId, String);
   check(chat, {
@@ -16,7 +19,7 @@ export default function addGroupChat(meetingId, chat) {
     msg: Match.Maybe(Array),
   });
 
-  const chatDocument = {
+  let chatDocument = {
     meetingId,
     chatId: chat.chatId || chat.id,
     name: chat.name,
@@ -25,6 +28,12 @@ export default function addGroupChat(meetingId, chat) {
     participants: chat.users,
     createdBy: chat.createdBy.id,
   };
+
+  if (PRIVATE_MESSAGE_READ_FEEDBACK_ENABLED && chat.access === TYPE_PRIVATE) {
+    let lastReadTimestamps = {};
+    chat.users.forEach(u => lastReadTimestamps[u.id] = 0);
+    chatDocument = {...chatDocument, ...{lastReadTimestamps}};
+  }
 
   const selector = {
     chatId: chatDocument.chatId,

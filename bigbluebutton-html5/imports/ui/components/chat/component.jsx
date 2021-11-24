@@ -35,6 +35,7 @@ const Chat = (props) => {
     title,
     messages,
     partnerIsLoggedOut,
+    lastReadByPartnerMessageTime,
     isChatLocked,
     actions,
     intl,
@@ -135,6 +136,7 @@ const Chat = (props) => {
         {...{
           partnerIsLoggedOut,
           lastReadMessageTime,
+          lastReadByPartnerMessageTime,
           hasUnreadMessages,
           scrollPosition,
           messages,

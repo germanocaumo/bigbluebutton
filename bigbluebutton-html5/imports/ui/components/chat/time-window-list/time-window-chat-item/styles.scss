@@ -139,6 +139,13 @@
   }
 }
 
+.read {
+  color: var(--color-success);
+  align-self: center;
+  margin-left: auto;
+  margin-right: .5rem;
+}
+
 .messages {
   > .message:first-child {
     margin-top: calc(var(--line-height-computed) / 4);

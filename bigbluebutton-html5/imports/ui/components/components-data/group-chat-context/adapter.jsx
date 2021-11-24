@@ -32,6 +32,21 @@ const Adapter = () => {
     diffAndDispatch();
   }, []);
 
+  useEffect(() => {
+    const groupChatCursor = GroupChat.find({});
+
+    groupChatCursor.observe({
+      changed: (obj) => {
+        dispatch({
+          type: ACTIONS.CHANGED,
+          value: {
+            groupChat: obj,
+          },
+        });
+      },
+    });
+  }, []);
+
   return null;
 };
 

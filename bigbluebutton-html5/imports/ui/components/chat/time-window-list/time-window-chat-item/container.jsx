@@ -28,6 +28,8 @@ const TimeWindowChatItemContainer = (props) => {
   const user = users[Auth.meetingID][sender];
   const messageKey = key;
   const handleReadMessage = (tstamp) => ChatService.updateUnreadMessage(tstamp, idChatOpen);
+  const updateLastReadByPartnerTime = (tstamp) => ChatService.updateLastReadByPartnerTime(tstamp, idChatOpen);
+  const isMessageReadFeedbackEnabled = ChatService.isMessageReadFeedbackEnabled();
   return (
     <TimeWindowChatItem
       {
@@ -37,6 +39,7 @@ const TimeWindowChatItemContainer = (props) => {
         isOnline: !user?.loggedOut,
         avatar: user?.avatar,
         name: user?.name,
+        isFromMe: Auth.userID === sender,
         read: message.read,
         messages,
         extra,
@@ -46,6 +49,8 @@ const TimeWindowChatItemContainer = (props) => {
         systemMessage: messageId.startsWith(SYSTEM_CHAT_TYPE) || !sender,
         messageKey,
         handleReadMessage,
+        isMessageReadFeedbackEnabled,
+        updateLastReadByPartnerTime,
         ...props,
       }
       }

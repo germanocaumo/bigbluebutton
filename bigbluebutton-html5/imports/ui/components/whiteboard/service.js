@@ -2375,6 +2375,8 @@ import Users from "/imports/api/users";
 import Polls from "/imports/api/polls";
 import Shapes from "/imports/api/shapes";
 import Captions from "/imports/api/captions";
+import Presentations from "/imports/api/presentations";
+import Meetings from "/imports/api/meetings";
 import Auth from "/imports/ui/services/auth";
 import WhiteboardMultiUser from "/imports/api/whiteboard-multi-user";
 import addAnnotationQuery from "/imports/api/annotations/addAnnotation";
@@ -2698,14 +2700,30 @@ const persistAsset = (asset) => makeCall("persistAsset", asset);
 
 const removeShape = (id) => makeCall("removeShape", id);
 
+const changeCurrentSlide = (s) => {
+  console.log('CHANGE CUR SLIDE SERVICE')
+  makeCall("changeCurrentSlide", s);
+}
 const publishCursorUpdate = (userId, name, x, y, presenter, isPositionOutside) => {
   makeCall("publishCursorUpdate", Auth.meetingID, userId, { userId, name, x, y, presenter, isPositionOutside })
 }
 
 const getShapes = () => {
   // temporary storage for shapes
+  console.log('getShapes : ', Slides.find().fetch().filter(s => s.childIndex))
   return Slides.find().fetch().filter(s => s.childIndex);
 };
+
+const getCurrentPres = () => {
+  const podId = "DEFAULT_PRESENTATION_POD";
+  return  PresentationService.getCurrentPresentation(podId);
+}
+
+const getCurSlide = () => {
+  let m = Meetings.findOne({ meetingId: Auth.meetingID });
+  console.log('---- meeting = ', m);
+  return m;
+}
 
 const getAssets = () => {
   // temporary storage for assets
@@ -2719,11 +2737,11 @@ const getAssets = () => {
   return _assets;
 }
 
-const initDefaultPages = () => {
+const initDefaultPages = (count = 1) => {
   const pages = {};
   const pageStates = {};
   let i = 1;
-  while (i < DEFAULT_NUM_OF_PAGES + 1) {
+  while (i < count + 1) {
     pages[`${i}`] = {
       id: `${i}`,
       name: `Slide ${i}`,
@@ -2763,6 +2781,9 @@ export {
   persistAsset,
   getShapes,
   getAssets,
+  getCurrentPres,
   removeShape,
   publishCursorUpdate,
+  changeCurrentSlide,
+  getCurSlide,
 };

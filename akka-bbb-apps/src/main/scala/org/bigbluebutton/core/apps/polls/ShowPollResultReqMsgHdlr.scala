@@ -24,13 +24,13 @@ trait ShowPollResultReqMsgHdlr extends RightsManagementTrait {
       val msgEvent = BbbCommonEnvCoreMsg(envelope, event)
       bus.outGW.send(msgEvent)
 
-      // SendWhiteboardAnnotationPubMsg
+      // SendWhiteboardAnnotationsPubMsg
       val annotationRouting = Routing.addMsgToClientRouting(MessageTypes.BROADCAST_TO_MEETING, liveMeeting.props.meetingProp.intId, msg.header.userId)
-      val annotationEnvelope = BbbCoreEnvelope(SendWhiteboardAnnotationEvtMsg.NAME, annotationRouting)
-      val annotationHeader = BbbClientMsgHeader(SendWhiteboardAnnotationEvtMsg.NAME, liveMeeting.props.meetingProp.intId, msg.header.userId)
+      val annotationEnvelope = BbbCoreEnvelope(SendWhiteboardAnnotationsEvtMsg.NAME, annotationRouting)
+      val annotationHeader = BbbClientMsgHeader(SendWhiteboardAnnotationsEvtMsg.NAME, liveMeeting.props.meetingProp.intId, msg.header.userId)
 
-      val annotMsgBody = SendWhiteboardAnnotationEvtMsgBody(annot)
-      val annotationEvent = SendWhiteboardAnnotationEvtMsg(annotationHeader, annotMsgBody)
+      val annotMsgBody = SendWhiteboardAnnotationsEvtMsgBody(annot.wbId, Array[AnnotationVO](annot))
+      val annotationEvent = SendWhiteboardAnnotationsEvtMsg(annotationHeader, annotMsgBody)
       val annotationMsgEvent = BbbCommonEnvCoreMsg(annotationEnvelope, annotationEvent)
       bus.outGW.send(annotationMsgEvent)
     }

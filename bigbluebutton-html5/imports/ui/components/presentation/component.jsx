@@ -1745,6 +1745,7 @@ class Presentation extends PureComponent {
   render() {
     const {
       userIsPresenter,
+      currentSlide,
       multiUser,
       slidePosition,
       presentationBounds,
@@ -1829,7 +1830,10 @@ class Presentation extends PureComponent {
               : null,
           }}
         >
-          <WhiteboardContainer getSvgRef={this.getSvgRef}/>
+          <WhiteboardContainer 
+            whiteboardId={currentSlide.id}
+            getSvgRef={this.getSvgRef}
+          />
           {isFullscreen && <PollingContainer />}
         {/* 
         <Styled.Presentation ref={(ref) => { this.refPresentation = ref; }}>

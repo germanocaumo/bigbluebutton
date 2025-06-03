@@ -1,16 +1,21 @@
 import { useEffect, useRef } from 'react';
 import { throttle } from '/imports/utils/throttle';
 import { layoutDispatch, layoutSelect, layoutSelectInput } from '/imports/ui/components/layout/context';
-import DEFAULT_VALUES from '/imports/ui/components/layout/defaultValues';
+import DEFAULT_VALUES, {
+  SIDEBAR_CONTENT_VERTICAL_MARGIN_PERCENTAGE_HEIGHT,
+  SIDEBAR_CONTENT_MARGIN_TO_MEDIA_PERCENTAGE_WIDTH,
+} from '/imports/ui/components/layout/defaultValues';
 import { INITIAL_INPUT_STATE } from '/imports/ui/components/layout/initState';
 import {
   ACTIONS,
   PANELS,
   CAMERADOCK_POSITION,
   LAYOUT_TYPE,
+  DEVICE_TYPE,
 } from '/imports/ui/components/layout/enums';
 import { defaultsDeep } from '/imports/utils/array-utils';
 import Session from '/imports/ui/services/storage/in-memory';
+import getFromUserSettings from '/imports/ui/services/users-settings';
 
 const windowWidth = () => window.document.documentElement.clientWidth;
 const windowHeight = () => window.document.documentElement.clientHeight;
@@ -49,6 +54,7 @@ const PresentationFocusLayout = (props) => {
   const layoutContextDispatch = layoutDispatch();
 
   const prevDeviceType = usePrevious(deviceType);
+  const isTabletLandscape = deviceType === DEVICE_TYPE.TABLET_LANDSCAPE;
   const { isPresentationEnabled, prevLayout } = props;
 
   const throttledCalculatesLayout = throttle(() => calculatesLayout(),
@@ -85,17 +91,19 @@ const PresentationFocusLayout = (props) => {
       value: (prevInput) => {
         const {
           sidebarNavigation, sidebarContent, presentation, cameraDock,
-          externalVideo, genericMainContent, screenShare,
+          externalVideo, genericMainContent, screenShare, sharedNotes,
         } = prevInput;
         const { sidebarContentPanel } = sidebarContent;
         let sidebarContentPanelOverride = sidebarContentPanel;
-        let overrideOpenSidebarPanel = sidebarContentPanel !== PANELS.NONE;
-        let overrideOpenSidebarNavigation = sidebarNavigation.isOpen
-          || sidebarContentPanel !== PANELS.NONE || false;
-        if (
+        let overrideOpenSidebarPanel = !getFromUserSettings('bbb_hide_sidebar_navigation', false)
+          && sidebarContentPanel !== PANELS.NONE;
+        let overrideOpenSidebarNavigation = !getFromUserSettings('bbb_hide_sidebar_navigation', false)
+          && (sidebarNavigation.isOpen || sidebarContentPanel !== PANELS.NONE || false);
+        if ((
           prevLayout === LAYOUT_TYPE.PRESENTATION_ONLY
           || prevLayout === LAYOUT_TYPE.CAMERAS_ONLY
-          || prevLayout === LAYOUT_TYPE.MEDIA_ONLY
+          || prevLayout === LAYOUT_TYPE.MEDIA_ONLY)
+          && !getFromUserSettings('bbb_hide_sidebar_navigation', false)
         ) {
           overrideOpenSidebarNavigation = true;
           overrideOpenSidebarPanel = true;
@@ -125,6 +133,12 @@ const PresentationFocusLayout = (props) => {
             },
             cameraDock: {
               numCameras: cameraDock.numCameras,
+              height: 0,
+              width: 0,
+              cameraOptimalGridSize: {
+                width: 0,
+                height: 0,
+              },
             },
             externalVideo: {
               hasExternalVideo: externalVideo.hasExternalVideo,
@@ -137,8 +151,11 @@ const PresentationFocusLayout = (props) => {
               width: screenShare.width,
               height: screenShare.height,
             },
+            sharedNotes: {
+              isPinned: sharedNotes.isPinned,
+            },
           },
-          hasLayoutEngineLoadedOnce && prevLayout === LAYOUT_TYPE.PRESENTATION_FOCUS ? prevInput : INITIAL_INPUT_STATE,
+          hasLayoutEngineLoadedOnce ? prevInput : INITIAL_INPUT_STATE,
         );
       },
     });
@@ -166,7 +183,7 @@ const PresentationFocusLayout = (props) => {
         height = windowHeight() - navBarHeight - bannerAreaHeight();
         minHeight = height;
         maxHeight = height;
-      } else if (cameraDockInput.numCameras > 0 && isOpen && !isGeneralMediaOff) {
+      } else if (cameraDockInput.numCameras > 0 && isOpen && !isGeneralMediaOff && !isTabletLandscape) {
         if (sidebarContentInput.height === 0) {
           height = windowHeight() * 0.75 - bannerAreaHeight();
         } else {
@@ -209,6 +226,10 @@ const PresentationFocusLayout = (props) => {
     const cameraDockBounds = {};
 
     let cameraDockHeight = 0;
+    const sidebarContentMediaMargin = windowWidth()
+      * SIDEBAR_CONTENT_MARGIN_TO_MEDIA_PERCENTAGE_WIDTH;
+    const sidebarContentVerticalMargin = windowHeight()
+      * SIDEBAR_CONTENT_VERTICAL_MARGIN_PERCENTAGE_HEIGHT;
 
     if (isMobile) {
       cameraDockBounds.top = mediaAreaBounds.top + mediaBounds.height;
@@ -220,6 +241,18 @@ const PresentationFocusLayout = (props) => {
       cameraDockBounds.minHeight = cameraDockMinHeight;
       cameraDockBounds.height = mediaAreaBounds.height - mediaBounds.height;
       cameraDockBounds.maxHeight = mediaAreaBounds.height - mediaBounds.height;
+    } else if (isTabletLandscape && presentationInput.isOpen) {
+      // don't show camera dock if presentation is open in tablet landscape mode
+      // the sidebar height gets too small, so only one or the other is shown
+      cameraDockBounds.top = 0;
+      cameraDockBounds.left = 0;
+      cameraDockBounds.right = 0;
+      cameraDockBounds.width = 0;
+      cameraDockBounds.height = 0;
+      cameraDockBounds.minWidth = 0;
+      cameraDockBounds.maxWidth = 0;
+      cameraDockBounds.minHeight = 0;
+      cameraDockBounds.maxHeight = 0;
     } else {
       if (cameraDockInput.height === 0) {
         cameraDockHeight = min(
@@ -235,7 +268,8 @@ const PresentationFocusLayout = (props) => {
           windowHeight() - cameraDockMinHeight,
         );
       }
-      cameraDockBounds.top = windowHeight() - cameraDockHeight - bannerAreaHeight();
+      cameraDockBounds.top = windowHeight() - cameraDockHeight
+        - bannerAreaHeight() - sidebarContentVerticalMargin + sidebarContentMediaMargin;
       cameraDockBounds.left = !isRTL ? sidebarNavWidth : 0;
       cameraDockBounds.right = isRTL ? sidebarNavWidth : 0;
       cameraDockBounds.minWidth = sidebarContentWidth;

@@ -47,6 +47,7 @@ import VoiceActivityAdapter from '../../core/adapters/voice-activity';
 import LayoutObserver from '../layout/observer';
 import BBBLiveKitRoomContainer from '/imports/ui/components/livekit/component';
 import { LAYOUT_TYPE } from '/imports/ui/components/layout/enums';
+import BreakoutRoomsAppObserver from '../breakout-room/breakout-observer/component';
 
 const intlMessages = defineMessages({
   userListLabel: {
@@ -297,6 +298,7 @@ class App extends Component {
       selectedLayout,
       isNotificationEnabled,
       isNonMediaLayout,
+      isRaiseHandEnabled,
     } = this.props;
 
     const {
@@ -308,6 +310,7 @@ class App extends Component {
     if (selectedLayout !== LAYOUT_TYPE.PRESENTATION_ONLY) {
       return (
         <>
+          <BreakoutRoomsAppObserver />
           <ScreenReaderAlertAdapter />
           <PluginsEngineManager pluginConfig={pluginConfig} />
           <FloatingWindowContainer />
@@ -335,7 +338,10 @@ class App extends Component {
             <SidebarContentContainer isSharedNotesPinned={isSharedNotesPinned} />
             <NavBarContainer main="new" />
             <WebcamContainer />
-            <ExternalVideoPlayerContainer />
+            {
+              !isNonMediaLayout
+                && <ExternalVideoPlayerContainer />
+            }
             <GenericContentMainAreaContainer
               genericMainContentId={genericMainContentId}
             />
@@ -351,7 +357,10 @@ class App extends Component {
                 )
                 : null
             }
-            <ScreenshareContainer shouldShowScreenshare={shouldShowScreenshare} />
+            {
+              !isNonMediaLayout
+              && <ScreenshareContainer shouldShowScreenshare={shouldShowScreenshare} />
+            }
             {isSharedNotesPinned
               ? (
                 <NotesContainer
@@ -360,7 +369,9 @@ class App extends Component {
               ) : null}
             <AudioCaptionsSpeechContainer />
             {this.renderAudioCaptions()}
-            {!hideNotificationToasts && <PresentationUploaderToastContainer intl={intl} />}
+            {(
+              !hideNotificationToasts
+              && isNotificationEnabled) && <PresentationUploaderToastContainer intl={intl} />}
             <UploaderContainer />
             <BreakoutJoinConfirmationContainerGraphQL />
             <BBBLiveKitRoomContainer />
@@ -371,9 +382,11 @@ class App extends Component {
               setVideoPreviewModalIsOpen: this.setVideoPreviewModalIsOpen,
             }}
             />
-            {!hideNotificationToasts && <ToastContainer rtl />}
+            {(
+              !hideNotificationToasts
+              && isNotificationEnabled) && <ToastContainer rtl />}
             <ChatAlertContainerGraphql />
-            <RaiseHandNotifier />
+            {isRaiseHandEnabled && <RaiseHandNotifier />}
             <ManyWebcamsNotifier />
             <PollingContainer />
             <WakeLockContainer />
@@ -407,68 +420,6 @@ class App extends Component {
             presentationIsOpen={presentationIsOpen}
             selectedLayout={selectedLayout}
           />
-          <BannerBarContainer />
-          <NotificationsBarContainer />
-          <SidebarNavigationContainer />
-          <SidebarContentContainer isSharedNotesPinned={isSharedNotesPinned} />
-          <NavBarContainer main="new" />
-          <WebcamContainer />
-          {
-            !isNonMediaLayout
-              && <ExternalVideoPlayerContainer />
-          }
-          <GenericContentMainAreaContainer
-            genericMainContentId={genericMainContentId}
-          />
-          {
-          shouldShowPresentation
-            ? (
-              <PresentationContainer
-                setPresentationFitToWidth={this.setPresentationFitToWidth}
-                fitToWidth={presentationFitToWidth}
-                darkTheme={darkTheme}
-                presentationIsOpen={presentationIsOpen}
-              />
-            )
-            : null
-            }
-          {
-            !isNonMediaLayout
-            && <ScreenshareContainer shouldShowScreenshare={shouldShowScreenshare} />
-          }
-
-          {isSharedNotesPinned
-            ? (
-              <NotesContainer
-                area="media"
-              />
-            ) : null}
-          <AudioCaptionsSpeechContainer />
-          {this.renderAudioCaptions()}
-          { (
-            !hideNotificationToasts
-            && isNotificationEnabled) && <PresentationUploaderToastContainer intl={intl} /> }
-          <UploaderContainer />
-          <BreakoutJoinConfirmationContainerGraphQL />
-          <BBBLiveKitRoomContainer />
-          <AudioContainer {...{
-            isAudioModalOpen,
-            setAudioModalIsOpen: this.setAudioModalIsOpen,
-            isVideoPreviewModalOpen,
-            setVideoPreviewModalIsOpen: this.setVideoPreviewModalIsOpen,
-          }}
-          />
-          { (
-            !hideNotificationToasts
-            && isNotificationEnabled) && <ToastContainer rtl /> }
-          <ChatAlertContainerGraphql />
-          <RaiseHandNotifier />
-          <ManyWebcamsNotifier />
-          <PollingContainer />
-          <WakeLockContainer />
-          {this.renderActionsBar()}
-          <EmojiRainContainer />
-          <VoiceActivityAdapter />
         </Styled.Layout>
       </>
     );

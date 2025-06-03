@@ -1,10 +1,11 @@
 import React, { useEffect, useReducer, useRef } from 'react';
 import { createContext, useContextSelector } from 'use-context-selector';
 import PropTypes from 'prop-types';
-import { equals } from 'ramda';
+import { clone, equals } from 'ramda';
 import { PINNED_PAD_SUBSCRIPTION } from '/imports/ui/components/notes/queries';
 import {
   ACTIONS, PRESENTATION_AREA, PANELS, LAYOUT_TYPE,
+  DEVICE_TYPE,
 } from '/imports/ui/components/layout/enums';
 import DEFAULT_VALUES from '/imports/ui/components/layout/defaultValues';
 import { INITIAL_INPUT_STATE, INITIAL_OUTPUT_STATE } from './initState';
@@ -416,55 +417,64 @@ const reducer = (state, action) => {
         onClick = undefined,
       } = action.value;
       const { sidebarNavigation } = state.input;
-      const { registeredApps } = sidebarNavigation;
+      const { registeredApps = {}, pinnedApps = [] } = sidebarNavigation;
+
+      const newRegisteredApps = {
+        ...registeredApps,
+        [id]: {
+          name,
+          icon,
+          ...(contentFunction && { contentFunction }),
+          ...(onClick && { onClick }),
+        },
+      };
+
+      const sortedRegisteredApps = Object.fromEntries(Object.entries(newRegisteredApps)
+        .sort(([, a], [, b]) => a.name.localeCompare(b.name)));
+
+      const sortedPinnedApps = pinnedApps
+        .slice()
+        .sort((a, b) => newRegisteredApps[a].name.localeCompare(newRegisteredApps[b].name));
+
       return {
         ...state,
         input: {
           ...state.input,
           sidebarNavigation: {
             ...sidebarNavigation,
-            registeredApps: {
-              ...registeredApps,
-              [id]: {
-                name,
-                icon,
-                ...(contentFunction && { contentFunction }),
-                ...(onClick && { onClick }),
-              },
-            },
+            registeredApps: sortedRegisteredApps,
+            pinnedApps: sortedPinnedApps,
           },
         },
       };
     }
     case ACTIONS.UNREGISTER_SIDEBAR_APP: {
-      const {
-        id,
-      } = action;
+      const { id } = action;
       const { sidebarNavigation } = state.input;
-      const { registeredApps, pinnedApps } = sidebarNavigation;
+      const { registeredApps = {}, pinnedApps = [] } = sidebarNavigation;
+
       if (!(id in registeredApps)) {
         logger.warn({
           logCode: 'unregister_not_found_app',
-          extraInfo: {
-            id,
-          },
+          extraInfo: { id },
         }, `Layout Context: Attempting to unregister an app "${id}" that is not registered.`);
         return state;
       }
+
       const updatedRegisteredApps = { ...registeredApps };
       delete updatedRegisteredApps[id];
+
       // Also remove it from pinned apps
       const updatedPinnedApps = pinnedApps.filter((pinnedApp) => pinnedApp !== id);
+
       return {
         ...state,
         input: {
           ...state.input,
           sidebarNavigation: {
             ...sidebarNavigation,
+            registeredApps: updatedRegisteredApps,
             pinnedApps: updatedPinnedApps,
-            registeredApps: {
-              ...updatedRegisteredApps,
-            },
           },
         },
       };
@@ -474,21 +484,19 @@ const reducer = (state, action) => {
       const MAX_PINNED_APPS_GALLERY = APP_CONFIG.appsGallery.maxPinnedApps;
       const { id: appId, pin } = action.value;
       const { sidebarNavigation } = state.input;
-      const { pinnedApps, registeredApps } = sidebarNavigation;
+      const { pinnedApps, registeredApps = [] } = sidebarNavigation;
 
       const isAppRegistered = appId in registeredApps;
       const isAppPinned = pinnedApps.includes(appId);
 
       if (!isAppRegistered) return state;
-      if ((pin && isAppPinned) || (!pin && !isAppPinned)) {
-        return state;
-      }
-      if (pin && pinnedApps.length === MAX_PINNED_APPS_GALLERY) {
-        return state;
-      }
+      if ((pin && isAppPinned) || (!pin && !isAppPinned)) return state;
+      if (pin && pinnedApps.length === MAX_PINNED_APPS_GALLERY) return state;
 
       const updatedPinnedApps = pin
-        ? [...pinnedApps, appId]
+        ? [...pinnedApps, appId].sort(
+          (a, b) => registeredApps[a].name.localeCompare(registeredApps[b].name),
+        )
         : pinnedApps.filter((pinnedApp) => pinnedApp !== appId);
 
       return {
@@ -545,11 +553,20 @@ const reducer = (state, action) => {
     // SIDEBAR CONTENT
     case ACTIONS.SET_SIDEBAR_CONTENT_IS_OPEN: {
       const { sidebarContent, sidebarNavigation } = state.input;
+      const { deviceType } = state;
       if (sidebarContent.isOpen === action.value) {
         return state;
       }
-      // When opening content sidebar, the navigation sidebar should be opened as well
-      if (action.value === true) sidebarNavigation.isOpen = true;
+      // When opening any panel on mobile, the navigation sidebar should be closed
+      // to prevent it from overlapping the opened panel.
+      // When the panel is closed, the navigation sidebar should be restored.
+      if (deviceType === DEVICE_TYPE.MOBILE) {
+        if (action.value === true) {
+          sidebarNavigation.isOpen = false;
+        } else {
+          sidebarNavigation.isOpen = true;
+        }
+      }
       return {
         ...state,
         input: {
@@ -1426,21 +1443,21 @@ const updatePresentationAreaContent = (
   isPresentationEnabled,
 ) => {
   const { layoutType } = layoutContextState;
-  const { sidebarContent } = layoutContextState.input;
+  const { sidebarContent, sharedNotes } = layoutContextState.input;
   const {
     presentationAreaContentActions: currentPresentationAreaContentActions,
   } = layoutContextState;
   if (!equals(
-    currentPresentationAreaContentActions,
-    previousPresentationAreaContentActions.current,
+    currentPresentationAreaContentActions.map((action) => action.value.content),
+    previousPresentationAreaContentActions.current.map((action) => action.value.content),
   ) || layoutType !== previousLayoutType) {
     const CHAT_CONFIG = window.meetingClientSettings.public.chat;
     const PUBLIC_GROUP_CHAT_ID = CHAT_CONFIG.public_group_id;
 
     // eslint-disable-next-line no-param-reassign
-    previousPresentationAreaContentActions.current = currentPresentationAreaContentActions.slice(0);
+    previousPresentationAreaContentActions.current = clone(currentPresentationAreaContentActions);
     const lastIndex = currentPresentationAreaContentActions.length - 1;
-    const lastPresentationContentInPile = currentPresentationAreaContentActions[lastIndex];
+    const lastPresentationContentInPile = clone(currentPresentationAreaContentActions[lastIndex]);
     let shouldOpenPresentation = true;
     switch (lastPresentationContentInPile.value.content) {
       case PRESENTATION_AREA.GENERIC_CONTENT: {
@@ -1487,7 +1504,7 @@ const updatePresentationAreaContent = (
         });
         layoutContextDispatch({
           type: ACTIONS.SET_NOTES_IS_PINNED,
-          value: lastPresentationContentInPile.value.open,
+          value: sharedNotes.isPinned,
         });
         break;
       }
@@ -1581,23 +1598,17 @@ const LayoutContextProvider = (props) => {
   useEffect(() => {
     const isSharedNotesPinned = !!pinnedPadData
       && pinnedPadData.sharedNotes[0]?.pinned;
-    if (isSharedNotesPinned) {
-      layoutContextDispatch({
-        type: ACTIONS.SET_PILE_CONTENT_FOR_PRESENTATION_AREA,
-        value: {
-          content: PRESENTATION_AREA.PINNED_NOTES,
-          open: true,
-        },
-      });
-    } else {
-      layoutContextDispatch({
-        type: ACTIONS.SET_PILE_CONTENT_FOR_PRESENTATION_AREA,
-        value: {
-          content: PRESENTATION_AREA.PINNED_NOTES,
-          open: false,
-        },
-      });
-    }
+    layoutContextDispatch({
+      type: ACTIONS.SET_NOTES_IS_PINNED,
+      value: isSharedNotesPinned,
+    });
+    layoutContextDispatch({
+      type: ACTIONS.SET_PILE_CONTENT_FOR_PRESENTATION_AREA,
+      value: {
+        content: PRESENTATION_AREA.PINNED_NOTES,
+        open: isSharedNotesPinned,
+      },
+    });
   }, [pinnedPadData]);
   useUpdatePresentationAreaContentForPlugin(layoutContextState);
   return (

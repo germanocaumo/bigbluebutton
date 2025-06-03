@@ -37,6 +37,7 @@ interface BreakoutRoomProps {
   userId: string;
   meetingId: string;
   setUpdateUsersWhileRunning: Dispatch<SetStateAction<boolean>>;
+  createdTime: number;
 }
 
 const intlMessages = defineMessages({
@@ -119,6 +120,7 @@ const BreakoutRoom: React.FC<BreakoutRoomProps> = ({
   userId,
   meetingId,
   setUpdateUsersWhileRunning,
+  createdTime,
 }) => {
   const [breakoutRoomEndAll] = useMutation(BREAKOUT_ROOM_END_ALL);
   const [breakoutRoomTransfer] = useMutation(USER_TRANSFER_VOICE_TO_MEETING);
@@ -212,6 +214,7 @@ const BreakoutRoom: React.FC<BreakoutRoomProps> = ({
           isModerator={isModerator}
           durationInSeconds={durationInSeconds}
           toggleShowChangeTimeForm={setShowChangeTimeForm}
+          createdTime={createdTime}
         />
         {isModerator ? <BreakoutMessageForm /> : null}
         {isModerator ? <Styled.Separator /> : null}
@@ -313,10 +316,12 @@ const BreakoutRoom: React.FC<BreakoutRoomProps> = ({
 };
 
 const BreakoutRoomContainer: React.FC = () => {
+  const layoutContextDispatch = layoutDispatch();
   const {
     data: meetingData,
   } = useMeeting((m) => ({
     durationInSeconds: m.durationInSeconds,
+    createdTime: m.createdTime,
     meetingId: m.meetingId,
     componentsFlags: m.componentsFlags,
   }));
@@ -337,6 +342,7 @@ const BreakoutRoomContainer: React.FC = () => {
     loading: breakoutLoading,
     error: breakoutError,
   } = useDeduplicatedSubscription<GetBreakoutDataResponse>(getBreakoutData);
+  const [isOpen, setIsOpen] = useState(!hasBreakoutRoom);
   if (
     breakoutLoading
     || currentUserLoading
@@ -356,25 +362,45 @@ const BreakoutRoomContainer: React.FC = () => {
     return null;
   }
   if (!currentUserData || !breakoutData || !meetingData) return null; // or loading spinner or error
-  if ((!hasBreakoutRoom && currentUserData.isModerator) || updateUsersWhileRunning) {
-    return (
-      <CreateBreakoutRoomContainer
-        isUpdate={updateUsersWhileRunning}
-        setUpdateUsersWhileRunning={setUpdateUsersWhileRunning}
-      />
-    );
-  }
-  return (
+
+  const returnedComponents = [(
     <BreakoutRoom
       breakouts={breakoutData.breakoutRoom || []}
       isModerator={currentUserData.isModerator ?? false}
       presenter={currentUserData.presenter ?? false}
       durationInSeconds={meetingData.durationInSeconds ?? 0}
-      userJoinedAudio={currentUserData?.voice?.joined ?? false}
+      userJoinedAudio={(currentUserData?.voice?.joined && !currentUserData?.voice?.deafened) ?? false}
       userId={currentUserData.userId ?? ''}
       meetingId={meetingData.meetingId ?? ''}
       setUpdateUsersWhileRunning={setUpdateUsersWhileRunning}
+      createdTime={meetingData.createdTime ?? 0}
     />
-  );
+  )];
+
+  if (updateUsersWhileRunning) {
+    returnedComponents.push((
+      <CreateBreakoutRoomContainer
+        isOpen={isOpen}
+        setIsOpen={(value: boolean) => {
+          if (!hasBreakoutRoom) {
+            layoutContextDispatch({
+              type: ACTIONS.SET_SIDEBAR_CONTENT_IS_OPEN,
+              value: false,
+            });
+            layoutContextDispatch({
+              type: ACTIONS.SET_SIDEBAR_CONTENT_PANEL,
+              value: PANELS.NONE,
+            });
+          }
+          setIsOpen(value);
+        }}
+        priority="low"
+        isUpdate={updateUsersWhileRunning}
+        setUpdateUsersWhileRunning={setUpdateUsersWhileRunning}
+      />
+    ));
+  }
+
+  return returnedComponents;
 };
 export default BreakoutRoomContainer;

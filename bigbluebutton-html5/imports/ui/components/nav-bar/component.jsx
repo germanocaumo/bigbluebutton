@@ -21,6 +21,7 @@ import Tooltip from '/imports/ui/components/common/tooltip/component';
 import SessionDetailsModal from '/imports/ui/components/session-details/component';
 import Icon from '/imports/ui/components/common/icon/icon-ts/component';
 import getStorageSingletonInstance from '../../services/storage';
+import getFromUserSettings from '/imports/ui/services/users-settings';
 
 const intlMessages = defineMessages({
   toggleUserListLabel: {
@@ -308,12 +309,13 @@ class NavBar extends Component {
     const { leftPluginItems, centerPluginItems, rightPluginItems } = this.splitPluginItems();
 
     const Settings = getSettingsSingletonInstance();
-    const { selectedLayout } = Settings.application;
+    const { selectedLayout } = Settings.layout;
     const shouldShowNavBarToggleButton = selectedLayout !== LAYOUT_TYPE.CAMERAS_ONLY
       && selectedLayout !== LAYOUT_TYPE.PRESENTATION_ONLY
       && selectedLayout !== LAYOUT_TYPE.PARTICIPANTS_AND_CHAT_ONLY
       && selectedLayout !== LAYOUT_TYPE.MEDIA_ONLY
-      && isPhone === true;
+      && isPhone === true
+      && !getFromUserSettings('bbb_hide_sidebar_navigation', false);
 
     const APP_CONFIG = window.meetingClientSettings?.public?.app;
     const enableTalkingIndicator = APP_CONFIG?.enableTalkingIndicator;
@@ -352,9 +354,7 @@ class NavBar extends Component {
                   label={intl.formatMessage(intlMessages.toggleUserListLabel)}
                   tooltipLabel={intl.formatMessage(intlMessages.toggleUserListLabel)}
                   aria-label={ariaLabel}
-                  icon={isExpanded
-                    ? (document.dir === 'rtl' ? 'right_arrow' : 'left_arrow')
-                    : (document.dir === 'rtl' ? 'left_arrow' : 'right_arrow')}
+                  icon="menu"
                   aria-expanded={isExpanded}
                   accessKey={TOGGLE_USERLIST_AK}
                   hasNotification={hasNotification}

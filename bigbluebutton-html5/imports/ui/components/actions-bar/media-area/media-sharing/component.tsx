@@ -13,6 +13,7 @@ import CancelPresentationIcon from '@mui/icons-material/CancelPresentation';
 import DisabledByDefaultIcon from '@mui/icons-material/DisabledByDefault';
 
 import { defineMessages, IntlShape } from 'react-intl';
+import { ActionButtonDropdownItemType } from 'bigbluebutton-html-plugin-sdk/dist/cjs/extensible-areas/action-button-dropdown-item/enums';
 import Styled from './styles';
 import Icon from '/imports/ui/components/common/icon/component';
 import Session from '/imports/ui/services/storage/in-memory';
@@ -24,6 +25,15 @@ import { MediaButton } from '/imports/ui/components/actions-bar/media-area/media
 import ScreenshareButtonContainer from '/imports/ui/components/actions-bar/media-area/media-sharing/screenshare/container';
 // import { MediaButtonProps } from '/imports/ui/components/actions-bar/media-area/media-sharing/media-button/component';
 
+interface ActionButtonPluginItem {
+  type: ActionButtonDropdownItemType;
+  id: string;
+  icon?: string;
+  label?: string;
+  onClick?: () => void;
+  allowed: boolean;
+}
+
 interface MediaSharingModalProps {
   open: boolean;
   onClose: () => void;
@@ -31,6 +41,7 @@ interface MediaSharingModalProps {
   intl: IntlShape;
   amIPresenter: boolean;
   isMeteorConnected: boolean;
+  actionButtonDropdownItems?: ActionButtonPluginItem[];
 }
 
 // This overlay covers the entire viewport and is used to catch outside clicks.
@@ -97,6 +108,7 @@ const intlMessages = defineMessages({
 
 const MediaSharingModal: React.FC<MediaSharingModalProps> = ({
   open, onClose, onStopSharing, intl, amIPresenter, isMeteorConnected,
+  actionButtonDropdownItems = [],
 }) => {
   const [isExternalVideoModalOpen, setExternalVideoModalOpen] = useState(false);
   const screenIsBroadcasting = useIsScreenBroadcasting();
@@ -148,7 +160,7 @@ const MediaSharingModal: React.FC<MediaSharingModalProps> = ({
               icon={<Icon iconName="external-video" />}
               onClick={handleExternalVideoClick}
             />
-            <MediaButton
+            {/* <MediaButton
               // disabled={(!isMeteorConnected && !isScreenBroadcasting) || !screenshareDataSavingSetting || !amIPresenter}
               // data-test="startScreenShare"
               // color={amIBroadcasting ? 'primary' : 'default'}
@@ -156,8 +168,23 @@ const MediaSharingModal: React.FC<MediaSharingModalProps> = ({
               showSettingsIcon
               text="Google Docs"
               icon={<AddToDriveIcon sx={{ width: '48px', height: '48px' }} />}
-              // icon={<Icon iconName="settings" />}
-            />
+            // icon={<Icon iconName="settings" />}
+            /> */}
+            {actionButtonDropdownItems
+              .filter((item) => item.allowed && item.type === ActionButtonDropdownItemType.OPTION)
+              .map((item) => (
+                <MediaButton
+                  key={item.id}
+                  data-test={`media-sharing-plugin-${item.id}`}
+                  color="default"
+                  text={item.label || ''}
+                  icon={item.icon ? <Icon iconName={item.icon} /> : undefined}
+                  onClick={() => {
+                    if (item.onClick) item.onClick();
+                    onClose();
+                  }}
+                />
+              ))}
           </Styled.MediaGrid>
         </Styled.ContentContainer>
 

@@ -317,6 +317,7 @@ class MediaArea extends PureComponent {
       isMobile,
       isRTL,
       propsToPassModal,
+      actionButtonDropdownItems,
     } = this.props;
 
     const {
@@ -357,6 +358,7 @@ class MediaArea extends PureComponent {
           intl={intl}
           amIPresenter={amIPresenter}
           isMeteorConnected={isMeteorConnected}
+          actionButtonDropdownItems={actionButtonDropdownItems}
         />
       </>
     );

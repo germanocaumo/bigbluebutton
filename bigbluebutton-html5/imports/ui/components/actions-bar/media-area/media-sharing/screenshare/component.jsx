@@ -15,7 +15,6 @@ import {
   useShowButtonForNonPresenters,
 } from '/imports/ui/components/screenshare/service';
 import { SCREENSHARING_ERRORS } from '/imports/api/screenshare/client/bridge/errors';
-import Button from '/imports/ui/components/common/button/component';
 import { EXTERNAL_VIDEO_STOP } from '/imports/ui/components/external-video-player/mutations';
 import { MediaButton } from '/imports/ui/components/actions-bar/media-area/media-sharing/media-button/component';
 import Icon from '/imports/ui/components/common/icon/component';
@@ -30,44 +29,13 @@ const propTypes = {
   isScreenBroadcasting: PropTypes.bool.isRequired,
   isScreenGloballyBroadcasting: PropTypes.bool.isRequired,
   isMeteorConnected: PropTypes.bool.isRequired,
+  screenshareDataSavingSetting: PropTypes.bool,
 };
 
 const intlMessages = defineMessages({
   screenShareLabel: {
     id: 'app.screenshare.screenShareLabel',
     description: 'Desktop Share label',
-  },
-  desktopShareLabel: {
-    id: 'app.actionsBar.actionsDropdown.desktopShareLabel',
-    description: 'Desktop Share option label',
-  },
-  stopDesktopShareLabel: {
-    id: 'app.actionsBar.actionsDropdown.stopDesktopShareLabel',
-    description: 'Stop Desktop Share option label',
-  },
-  desktopShareDesc: {
-    id: 'app.actionsBar.actionsDropdown.desktopShareDesc',
-    description: 'adds context to desktop share option',
-  },
-  stopDesktopShareDesc: {
-    id: 'app.actionsBar.actionsDropdown.stopDesktopShareDesc',
-    description: 'adds context to stop desktop share option',
-  },
-  lockedDesktopShareDesc: {
-    id: 'app.actionsBar.actionsDropdown.lockedDesktopShareDesc',
-    description: 'Desktop locked Share option desc',
-  },
-  lockedDesktopShareLabel: {
-    id: 'app.actionsBar.actionsDropdown.lockedDesktopShareLabel',
-    description: 'Desktop locked Share option label',
-  },
-  notPresenterDesktopShareLabel: {
-    id: 'app.actionsBar.actionsDropdown.notPresenterDesktopShareLabel',
-    description: 'You are not the presenter label',
-  },
-  notPresenterDesktopShareDesc: {
-    id: 'app.actionsBar.actionsDropdown.notPresenterDesktopShareDesc',
-    description: 'You are not the presenter desc',
   },
   screenShareNotSupported: {
     id: 'app.media.screenshare.notSupported',
@@ -154,6 +122,7 @@ const ScreenshareButton = ({
   isMeteorConnected,
   screenshareDataSavingSetting,
 }) => {
+  // eslint-disable-next-line max-len
   const TROUBLESHOOTING_URLS = window.meetingClientSettings.public.media.screenshareTroubleshootingLinks;
   const [stopExternalVideoShare] = useMutation(EXTERNAL_VIDEO_STOP);
   const isCameraAsContentBroadcasting = useIsCameraAsContentBroadcasting();
@@ -190,6 +159,7 @@ const ScreenshareButton = ({
       }, `Screenshare failed: ${errorMessage} (code=${errorCode})`);
     }
 
+    console.log('opa');
     screenshareHasEnded();
   };
 
@@ -207,17 +177,6 @@ const ScreenshareButton = ({
   );
 
   const amIBroadcasting = isScreenBroadcasting && amIPresenter;
-
-  // this part handles the label/desc intl for the screenshare button
-  // basically: if you are not a presenter, the label/desc will be 'the screen cannot be shared'.
-  // if you are: the label/desc intl will be 'stop/start screenshare'.
-  let info = screenshareDataSavingSetting ? 'desktopShare' : 'lockedDesktopShare';
-  if (!amIPresenter) {
-    info = 'notPresenterDesktopShare';
-  } else if (isScreenBroadcasting) {
-    info = 'stopDesktopShare';
-  }
-
   const showButtonForNonPresenters = useShowButtonForNonPresenters();
 
   const shouldAllowScreensharing = enabled
@@ -233,12 +192,13 @@ const ScreenshareButton = ({
         shouldAllowScreensharing
           ? (
             <MediaButton
-              disabled={(!isMeteorConnected && !isScreenBroadcasting) || !screenshareDataSavingSetting || !amIPresenter}
-              data-test="startScreenShare"
+              disabled={
+                (!isMeteorConnected && !isScreenBroadcasting) || !screenshareDataSavingSetting
+                || !amIPresenter || loading
+              }
+              data-test={dataTest}
               color={amIBroadcasting ? 'primary' : 'default'}
-              // showSettingsIcon
               text={intl.formatMessage(intlMessages.screenShareLabel)}
-              // icon={<ScreenShareIcon sx={{ width: '48px', height: '48px' }} />}
               icon={<Icon iconName="desktop" />}
               onClick={amIBroadcasting
                 ? screenshareHasEnded

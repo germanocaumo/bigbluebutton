@@ -1,9 +1,9 @@
 import {
   colorGrayUserListToolbar, btnDefaultColor, btnPrimaryBg, btnPrimaryColor,
-  colorText,
+  colorText, colorBlueAux,
 } from '/imports/ui/stylesheets/styled-components/palette';
 import { borderSize, borderSizeLarge } from '/imports/ui/stylesheets/styled-components/general';
-import { ButtonBase, IconButton } from '@mui/material';
+import { ButtonBase } from '@mui/material';
 import styled from 'styled-components';
 
 const btnBorder = 'var(--btn-default-border, #B0BDC9)';
@@ -71,6 +71,24 @@ const ButtonFrame = styled(ButtonBase)<ButtonFrameProps>`
       color: ${btnPrimaryColor} !important;
     }
   `}
+
+  ${({ color }) => color === 'active' && `
+    //color: ${colorBlueAux} !important;
+    background-color: ${colorBlueAux} !important;
+    border: 0 !important;
+
+    &:focus,
+    .buttonWrapper:focus:not([aria-disabled="true"]) & {
+      color: ${btnPrimaryColor} !important;
+      background-color: ${colorBlueAux} !important;
+      background-clip: padding-box;
+      box-shadow: 0 0 0 ${borderSize} ${btnPrimaryBg};
+    }
+    &:hover,
+    .buttonWrapper:hover & {
+      color: ${btnPrimaryColor} !important;
+    }
+  `}
 `;
 
 // Positioned settings icon in the top right corner of the button.
@@ -78,6 +96,14 @@ const SettingsContainer = styled.div`
   position: absolute;
   top: 0.1rem;
   right: 0.1rem;
+
+  ${({ color }) => color === 'default' && `
+    color: ${btnDefaultColor} !important;
+  `}
+
+  ${({ color }) => color === 'active' && `
+    color: ${btnPrimaryBg} !important;
+  `}
 `;
 
 // Wrapper for the main placeholder icon.

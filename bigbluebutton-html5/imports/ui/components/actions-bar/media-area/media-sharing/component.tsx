@@ -1,61 +1,69 @@
 import React, { useState } from 'react';
 import IconButton from '@mui/material/IconButton';
-import Button from '@mui/material/Button';
 import CloseIcon from '@mui/icons-material/Close';
-import styled from 'styled-components';
-import { lgBorderRadius } from '/imports/ui/stylesheets/styled-components/general';
-import { colorWhite } from '/imports/ui/stylesheets/styled-components/palette';
-import ScreenShareIcon from '@mui/icons-material/ScreenShare';
-// import FilePresentIcon from '@mui/icons-material/FilePresent';
-import SmartDisplayIcon from '@mui/icons-material/SmartDisplay';
-import AddToDriveIcon from '@mui/icons-material/AddToDrive';
-import CancelPresentationIcon from '@mui/icons-material/CancelPresentation';
-import DisabledByDefaultIcon from '@mui/icons-material/DisabledByDefault';
-
+import { colorPrimary } from '/imports/ui/stylesheets/styled-components/palette';
+import CoPresentIcon from '@mui/icons-material/CoPresent';
+import { useIsScreenGloballyBroadcasting, screenshareHasEnded } from '/imports/ui/components/screenshare/service';
 import { defineMessages, IntlShape } from 'react-intl';
 import { ActionButtonDropdownItemType } from 'bigbluebutton-html-plugin-sdk/dist/cjs/extensible-areas/action-button-dropdown-item/enums';
 import Styled from './styles';
 import Icon from '/imports/ui/components/common/icon/component';
-import Session from '/imports/ui/services/storage/in-memory';
-// import Icon from '@mui/material/Icon';
-import ExternalVideoModal from '/imports/ui/components/external-video-player/external-video-player-graphql/modal/component';
-import { useIsScreenBroadcasting, useIsScreenGloballyBroadcasting } from '/imports/ui/components/screenshare/service';
-
 import { MediaButton } from '/imports/ui/components/actions-bar/media-area/media-sharing/media-button/component';
 import ScreenshareButtonContainer from '/imports/ui/components/actions-bar/media-area/media-sharing/screenshare/container';
-// import { MediaButtonProps } from '/imports/ui/components/actions-bar/media-area/media-sharing/media-button/component';
-
-interface ActionButtonPluginItem {
-  type: ActionButtonDropdownItemType;
-  id: string;
-  icon?: string;
-  label?: string;
-  onClick?: () => void;
-  allowed: boolean;
-}
+import PresentationUploaderContainer from './presentation/container';
+import ExternalVideoView from './external-video/component';
+import CameraAsContentView from './camera-as-content/component';
+import { ActionButtonPluginItem } from '../types';
 
 interface MediaSharingModalProps {
   open: boolean;
   onClose: () => void;
-  onStopSharing: () => void;
   intl: IntlShape;
-  amIPresenter: boolean;
+  amIPresenter: boolean | undefined;
+  amIModerator: boolean | undefined;
   isMeteorConnected: boolean;
   actionButtonDropdownItems?: ActionButtonPluginItem[];
+  isCameraAsContentEnabled: boolean;
+  hasCameraAsContent: boolean;
+  handleTakePresenter: () => void;
+  hasPresentation: boolean;
+  isPresentationManagementDisabled: boolean | undefined;
+  isPresentationEnabled: boolean;
+  isSharingVideo: boolean;
+  allowExternalVideo: boolean;
+  stopExternalVideoShare: () => void;
+  setPresentationFitToWidth: (fitToWidth: boolean) => void;
 }
 
-// This overlay covers the entire viewport and is used to catch outside clicks.
-const Overlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%; 
-  height: 100%;
-  background: transparent;
-  z-index: 1000;
-`;
-
 const intlMessages = defineMessages({
+  mediaSharingTitle: {
+    id: 'app.mediaSharing.modal.title',
+    description: 'Media sharing modal title',
+  },
+  mediaSharingSlides: {
+    id: 'app.mediaSharing.modal.slides',
+    description: 'Media sharing slides button text',
+  },
+  mediaSharingVideoLink: {
+    id: 'app.mediaSharing.modal.videoLink',
+    description: 'Media sharing video link button text',
+  },
+  mustBePresenter: {
+    id: 'app.mediaSharing.modal.mustBePresenter',
+    description: 'Message indicating that the user must be a presenter to share content',
+  },
+  cameraAsContentSettingsTitle: {
+    id: 'app.videoPreview.cameraAsContentSettingsTitle',
+    description: 'Title for the video preview modal when sharing camera as content',
+  },
+  stopSharingLabel: {
+    id: 'app.mediaSharing.modal.stopSharing',
+    description: 'Label for the stop sharing button in the sharing media modal',
+  },
+  screenShareLabel: {
+    id: 'app.screenshare.screenShareLabel',
+    description: 'Label for screen share button',
+  },
   mediaLabel: {
     id: 'app.actionsBar.actionsDropdown.actionsLabel',
     description: 'Actions button label',
@@ -104,113 +112,241 @@ const intlMessages = defineMessages({
     id: 'app.actionsBar.actionsDropdown.unshareCameraAsContent',
     description: 'Label for unshare camera as content',
   },
+  confirmLabel: {
+    id: 'app.actionsBar.actionsDropdown.confirmLabel',
+    description: 'Confirm button label',
+  },
 });
 
 const MediaSharingModal: React.FC<MediaSharingModalProps> = ({
-  open, onClose, onStopSharing, intl, amIPresenter, isMeteorConnected,
+  open, onClose, intl, amIPresenter = false, isMeteorConnected,
   actionButtonDropdownItems = [],
+  isCameraAsContentEnabled,
+  hasCameraAsContent,
+  hasPresentation,
+  amIModerator = false,
+  handleTakePresenter,
+  isPresentationManagementDisabled = false,
+  isPresentationEnabled,
+  isSharingVideo,
+  allowExternalVideo,
+  stopExternalVideoShare,
+  setPresentationFitToWidth,
 }) => {
-  const [isExternalVideoModalOpen, setExternalVideoModalOpen] = useState(false);
-  const screenIsBroadcasting = useIsScreenBroadcasting();
+  const { screenIsShared: isScreenGloballyBroadcasting } = useIsScreenGloballyBroadcasting();
+  const [currentView, setCurrentView] = useState<'main' | 'presentation' | 'externalVideo' | 'cameraAsContent'>('main');
 
   if (!open) return null;
 
-  const handlePresentationClick = () => Session.setItem('showUploadPresentationView', true);
-
-  const handleExternalVideoClick = () => {
-    setExternalVideoModalOpen(true);
+  const handleBackClick = () => {
+    setCurrentView('main');
   };
 
-  return (
-    <Overlay onClick={onClose}>
-      {/* Stop propagation so that clicking inside the modal doesn't close it */}
-      <Styled.ModalContainer onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <Styled.HeaderContainer>
-          <h2>MEDIA SHARING</h2>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Styled.HeaderContainer>
+  const handleClose = () => {
+    setCurrentView('main');
+    onClose();
+  };
 
-        {/* Content */}
-        <Styled.ContentContainer>
-          <Styled.MediaGrid>
-            <ScreenshareButtonContainer {...{
-              amIPresenter,
-              isMeteorConnected,
-            }}
-            />
+  const handlePresentationClick = () => {
+    setCurrentView('presentation');
+  };
+
+  const handleExternalVideoClick = () => {
+    setCurrentView('externalVideo');
+  };
+
+  const handleCameraAsContentClick = () => {
+    screenshareHasEnded();
+    setCurrentView('cameraAsContent');
+  };
+
+  const renderContent = () => {
+    if (currentView === 'main') {
+      return (
+        <Styled.MediaGrid>
+          <ScreenshareButtonContainer {...{
+            amIPresenter,
+            isMeteorConnected,
+          }}
+          />
+          {amIPresenter && isPresentationEnabled && !isPresentationManagementDisabled && (
             <MediaButton
-              // disabled={(!isMeteorConnected && !isScreenBroadcasting) || !screenshareDataSavingSetting || !amIPresenter}
               data-test="managePresentations"
-              // color={amIBroadcasting ? 'primary' : 'default'}
-              color="default"
+              color={hasPresentation ? 'active' : 'default'}
               showSettingsIcon
-              text="Slides"
-              icon={<Icon iconName="file" />}
+              text={intl.formatMessage(intlMessages.mediaSharingSlides)}
+              // @ts-ignore - jsx code
+              icon={(<Icon iconName="file" color={hasPresentation ? colorPrimary : undefined} />)}
               onClick={handlePresentationClick}
             />
+          )}
+          {amIPresenter && allowExternalVideo && (
             <MediaButton
-              // disabled={(!isMeteorConnected && !isScreenBroadcasting) || !screenshareDataSavingSetting || !amIPresenter}
-              data-test="startExternalVideo"
-              color="default"
+              data-test="shareExternalVideo"
+              color={isSharingVideo ? 'primary' : 'default'}
               showSettingsIcon
-              text="Video Link"
+              text={intl.formatMessage(intlMessages.mediaSharingVideoLink)}
               icon={<Icon iconName="external-video" />}
               onClick={handleExternalVideoClick}
             />
-            {/* <MediaButton
-              // disabled={(!isMeteorConnected && !isScreenBroadcasting) || !screenshareDataSavingSetting || !amIPresenter}
-              // data-test="startScreenShare"
-              // color={amIBroadcasting ? 'primary' : 'default'}
-              color="default"
+          )}
+          {isCameraAsContentEnabled && amIPresenter && (
+            <MediaButton
+              data-test="cameraAsContent"
+              color={hasCameraAsContent ? 'primary' : 'default'}
               showSettingsIcon
-              text="Google Docs"
-              icon={<AddToDriveIcon sx={{ width: '48px', height: '48px' }} />}
-            // icon={<Icon iconName="settings" />}
-            /> */}
-            {actionButtonDropdownItems
-              .filter((item) => item.allowed && item.type === ActionButtonDropdownItemType.OPTION)
-              .map((item) => (
-                <MediaButton
-                  key={item.id}
-                  data-test={`media-sharing-plugin-${item.id}`}
-                  color="default"
-                  text={item.label || ''}
-                  icon={item.icon ? <Icon iconName={item.icon} /> : undefined}
-                  onClick={() => {
-                    if (item.onClick) item.onClick();
-                    onClose();
-                  }}
-                />
-              ))}
-          </Styled.MediaGrid>
-        </Styled.ContentContainer>
+              text={intl.formatMessage(intlMessages.shareCameraAsContent)}
+              icon={<Icon iconName="video" />}
+              onClick={handleCameraAsContentClick}
+            />
+          )}
+          {actionButtonDropdownItems
+            .filter((item) => item.allowed && item.type === ActionButtonDropdownItemType.OPTION)
+            .map((item) => (
+              <MediaButton
+                key={item.id}
+                data-test={`media-sharing-plugin-${item.id}`}
+                color="default"
+                text={item.label || ''}
+                icon={item.icon ? <Icon iconName={item.icon} /> : undefined}
+                onClick={() => {
+                  if (item.onClick) item.onClick();
+                  handleClose();
+                }}
+              />
+            ))}
+        </Styled.MediaGrid>
+      );
+    }
 
-        {/* Footer */}
-        <Styled.FooterContainer>
-          <Styled.ConfirmationButton
-            aria-label="Share"
-            data-test="stopSharing"
-            label="Share"
-            color={!screenIsBroadcasting ? 'primary' : 'danger'}
-            onClick={onStopSharing}
-            ghost={screenIsBroadcasting}
-            customIcon={screenIsBroadcasting && <DisabledByDefaultIcon sx={{ width: '1.5rem', height: '1.5rem' }} />}
-          />
-        </Styled.FooterContainer>
-      </Styled.ModalContainer>
+    let subViewTitle = '';
+    let subViewIcon: React.ReactNode = null;
+    let subViewSpecificContent: React.ReactNode = null;
 
-      {isExternalVideoModalOpen && (
-        <ExternalVideoModal
-          onRequestClose={() => setExternalVideoModalOpen(false)}
-          priority="low"
-          setIsOpen={setExternalVideoModalOpen}
-          isOpen={isExternalVideoModalOpen}
+    if (currentView === 'presentation') {
+      subViewTitle = intl.formatMessage(intlMessages.presentationLabel);
+      subViewIcon = <Icon iconName="file" />;
+      subViewSpecificContent = (
+        <PresentationUploaderContainer
+          amIPresenter={amIPresenter}
+          onActionCompleted={handleBackClick}
+          setPresentationFitToWidth={setPresentationFitToWidth}
         />
-      )}
-    </Overlay>
+      );
+    } else if (currentView === 'externalVideo') {
+      subViewTitle = intl.formatMessage(intlMessages.startExternalVideoLabel);
+      subViewIcon = <Icon iconName="external-video" />;
+      subViewSpecificContent = (
+        <ExternalVideoView
+          intl={intl}
+          onActionCompleted={handleBackClick}
+          isSharingVideo={isSharingVideo}
+          stopExternalVideoShare={stopExternalVideoShare}
+        />
+      );
+    } else if (currentView === 'cameraAsContent') {
+      subViewTitle = intl.formatMessage(intlMessages.cameraAsContentSettingsTitle);
+      subViewIcon = <Icon iconName="video" />;
+      subViewSpecificContent = (
+        <CameraAsContentView
+          intl={intl}
+          hasCameraAsContent={hasCameraAsContent}
+          onActionCompleted={handleBackClick}
+          stopExternalVideoShare={stopExternalVideoShare}
+        />
+      );
+    }
+
+    if (subViewSpecificContent) {
+      return (
+        <Styled.SubViewWrapper>
+          <Styled.SubHeader>
+            <IconButton onClick={handleBackClick} size="small">
+              <Styled.BackButtonIcon />
+            </IconButton>
+            <Styled.SubHeaderTitle>{subViewTitle}</Styled.SubHeaderTitle>
+            {subViewIcon && <Styled.SubHeaderIconContainer>{subViewIcon}</Styled.SubHeaderIconContainer>}
+          </Styled.SubHeader>
+          <Styled.SubViewContent>
+            {subViewSpecificContent}
+          </Styled.SubViewContent>
+        </Styled.SubViewWrapper>
+      );
+    }
+
+    return null;
+  };
+
+  const renderTakePresenterView = () => {
+    return (
+      <Styled.BecomePresenterViewContainer>
+        <Styled.BecomePresenterText>
+          {intl.formatMessage(intlMessages.mustBePresenter)}
+        </Styled.BecomePresenterText>
+        <Styled.ConfirmationButton
+          data-test="takePresenterButton"
+          label={intl.formatMessage(intlMessages.takePresenter)}
+          color="primary"
+          onClick={handleTakePresenter}
+          customIcon={<CoPresentIcon />}
+        />
+      </Styled.BecomePresenterViewContainer>
+    );
+  };
+
+  let stopSharingAction = null;
+  if (isScreenGloballyBroadcasting || hasCameraAsContent) {
+    stopSharingAction = screenshareHasEnded;
+  } else if (isSharingVideo) {
+    stopSharingAction = stopExternalVideoShare;
+  }
+
+  let stopSharingIcon = null;
+  if (isScreenGloballyBroadcasting) {
+    stopSharingIcon = 'desktop_off';
+  } else if (isSharingVideo) {
+    stopSharingIcon = 'external-video_off';
+  } else if (hasCameraAsContent) {
+    stopSharingIcon = 'video_off';
+  }
+
+  const isSharing = isSharingVideo || hasCameraAsContent || isScreenGloballyBroadcasting;
+
+  return (
+    <Styled.Overlay onClick={handleClose}>
+      {/* Stop propagation so that clicking inside the modal doesn't close it */}
+      <Styled.ModalContainer onClick={(e) => e.stopPropagation()}>
+        {!amIPresenter && amIModerator
+          ? renderTakePresenterView()
+          : (
+            <>
+              <Styled.HeaderContainer>
+                <h2>{intl.formatMessage(intlMessages.mediaSharingTitle)}</h2>
+                <IconButton onClick={handleClose} size="small">
+                  <CloseIcon />
+                </IconButton>
+              </Styled.HeaderContainer>
+
+              <Styled.ContentContainer>
+                {renderContent()}
+              </Styled.ContentContainer>
+
+              {currentView === 'main' && isSharing && (
+                <Styled.FooterContainer>
+                  <Styled.ConfirmationButton
+                    data-test="StopSharing"
+                    label={`${intl.formatMessage(intlMessages.stopSharingLabel)}`}
+                    color="danger"
+                    disabled={!isSharingVideo && !hasCameraAsContent && !isScreenGloballyBroadcasting}
+                    onClick={stopSharingAction}
+                    icon={stopSharingIcon}
+                  />
+                </Styled.FooterContainer>
+              )}
+            </>
+          )}
+      </Styled.ModalContainer>
+    </Styled.Overlay>
   );
 };
 

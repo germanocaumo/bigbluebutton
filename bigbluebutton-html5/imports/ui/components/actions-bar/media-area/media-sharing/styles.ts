@@ -1,26 +1,36 @@
 import styled from 'styled-components';
-import { smallOnly } from '/imports/ui/stylesheets/styled-components/breakpoints';
 import Button from '/imports/ui/components/common/button/component';
-import { btnPrimaryBg, colorDanger, colorWhite } from '/imports/ui/stylesheets/styled-components/palette';
+import {
+  colorDanger, colorWhite, colorGrayUserListToolbar, colorPrimary, appsGalleryOutlineColor,
+  colorText, colorGrayIcons, appsPanelTextColor,
+} from '/imports/ui/stylesheets/styled-components/palette';
 import { lgBorderRadius } from '/imports/ui/stylesheets/styled-components/general';
+import { fontSizeLarge, titlesFontWeight } from '/imports/ui/stylesheets/styled-components/typography';
+import ExpandCircleDownIcon from '@mui/icons-material/ExpandCircleDown';
 
-const HideDropdownButton = styled(Button)`
-  ${({ open }) => open && `
-      @media ${smallOnly} {
-        display:none;
-      }
-   `}
+// This overlay covers the entire viewport and is used to catch outside clicks.
+const Overlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%; 
+  height: 100%;
+  background: transparent;
+  z-index: 1000;
 `;
 
+// @ts-ignore - Button is JSX element
 const ConfirmationButton = styled(Button)`
   display: flex;
+  width: 100%;
   height: 3.5rem;
-  padding: var(--Spacing-spacing-16, 1rem);
+  padding: 1rem;
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
   flex: 1 0 0;
   border-radius: ${lgBorderRadius};
+  font-size: 1rem;
 
   ${({ color }) => color === 'danger' && `
     border: 1px solid ${colorDanger};
@@ -29,12 +39,10 @@ const ConfirmationButton = styled(Button)`
   &:hover {
     opacity: 0.8;
   }
-`;
 
-const IconContainer = styled.div`
-  width: 1.5rem;
-  height: 1.5rem;
-  margin-right: 0.5rem;
+  i { 
+    font-size: 1.5rem; 
+  }
 `;
 
 // Modal container positioned in the bottom right corner.
@@ -56,38 +64,131 @@ const HeaderContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eaeaea;
+  padding: 1.5rem;
+  border-bottom: 1px solid ${appsGalleryOutlineColor};
+
+  h2 {
+    margin: 0;
+    font-size: ${fontSizeLarge};
+    font-weight: ${titlesFontWeight};
+    text-transform: uppercase;
+  }
 `;
 
-// Content container for the media grid.
+// Content container for the media grid or sub-view.
 const ContentContainer = styled.div`
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1; /* Allows content to fill available space if modal has fixed height */
+  overflow-y: auto; /* Add scroll if content overflows */
 `;
 
 // Grid layout for displaying media options.
 const MediaGrid = styled.div`
+  padding: 1.5rem;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: 1.5rem;
   text-align: center;
+  justify-items: center;
 `;
 
-// Footer container for the stop sharing button.
+// Footer container for the start/stop sharing button.
 const FooterContainer = styled.div`
-  padding: 16px 20px;
-  border-top: 1px solid #eaeaea;
+  padding: 1.5rem;
+  border-top: 1px solid ${appsGalleryOutlineColor};
   display: flex;
   justify-content: center;
 `;
 
+// Styles for the sub-view (when presentation/externalvideo/cameraAsContent is selected)
+const SubViewWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+`;
+
+const SubHeader = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+`;
+
+const BackButtonIcon = styled(ExpandCircleDownIcon)`
+  transform: rotate(90deg);
+  color: ${colorPrimary};
+`;
+
+const SubHeaderTitle = styled.span`
+  font-size: 1.1rem;
+  color: ${appsPanelTextColor};
+  margin-left: 0.5rem;
+  flex-grow: 1;
+  text-align: left;
+`;
+
+const SubHeaderIconContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto; /* Pushes icon to the far right of the title's flex space */
+  margin-right: 0.5rem;
+  color: ${colorGrayIcons};
+  i { 
+    font-size: 1.5rem; 
+    line-height: 1; 
+  }
+`;
+
+const SubViewContent = styled.div`
+  text-align: center; 
+
+  p {
+    margin-bottom: 16px;
+  }
+`;
+
+const SubViewContentText = styled.div`
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 1.5rem;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  flex: 1 0 0;
+  border-radius: 0.5rem;
+  border: 1px dashed ${colorPrimary};
+  background: ${colorGrayUserListToolbar};
+`;
+
+const BecomePresenterViewContainer = styled.div`
+  display: inline-flex;
+  padding: 1rem;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const BecomePresenterText = styled.p`
+  color: ${colorText};
+  font-size: ${fontSizeLarge};
+`;
+
 export default {
-  HideDropdownButton,
-  IconContainer,
+  Overlay,
   ConfirmationButton,
   ModalContainer,
   HeaderContainer,
   ContentContainer,
   MediaGrid,
   FooterContainer,
+  SubViewWrapper,
+  SubHeader,
+  SubHeaderTitle,
+  SubHeaderIconContainer,
+  SubViewContent,
+  SubViewContentText,
+  BackButtonIcon,
+  BecomePresenterViewContainer,
+  BecomePresenterText,
 };

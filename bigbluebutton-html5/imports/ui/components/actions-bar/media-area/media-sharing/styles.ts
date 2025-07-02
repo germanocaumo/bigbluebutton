@@ -46,17 +46,30 @@ const ConfirmationButton = styled(Button)`
 `;
 
 // Modal container positioned in the bottom right corner.
-const ModalContainer = styled.div`
+const ModalContainer = styled.div<{ isMobile: boolean, isRTL: boolean, actionsBarHeight: number }>`
   position: fixed;
-  bottom: 64px;
-  right: 24px;
   background: ${colorWhite};
-  border-radius: ${lgBorderRadius};
-  width: 420px;
   box-shadow: -4px 4px 8px 0px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
   z-index: 1100;
+  bottom: ${({ actionsBarHeight }) => actionsBarHeight}px;
+  border-radius: ${lgBorderRadius};
+
+  ${({ isMobile, isRTL }) => (isMobile ? `
+    left: 0;
+    right: 0;
+    width: 100%;
+  ` : `
+    width: 420px;
+    ${isRTL ? `
+      left: 24px;
+      right: auto;
+    ` : `
+      right: 24px;
+      left: auto;
+    `}
+  `)}
 `;
 
 // Header container to hold the title and close button.

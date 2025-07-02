@@ -14,6 +14,8 @@ import PresentationUploaderContainer from './presentation/container';
 import ExternalVideoView from './external-video/component';
 import CameraAsContentView from './camera-as-content/component';
 import { ActionButtonPluginItem } from '../types';
+import { layoutSelectOutput } from '/imports/ui/components/layout/context';
+import { Output } from '/imports/ui/components/layout/layoutTypes';
 
 interface MediaSharingModalProps {
   open: boolean;
@@ -33,6 +35,8 @@ interface MediaSharingModalProps {
   allowExternalVideo: boolean;
   stopExternalVideoShare: () => void;
   setPresentationFitToWidth: (fitToWidth: boolean) => void;
+  isMobile: boolean;
+  isRTL: boolean;
 }
 
 const intlMessages = defineMessages({
@@ -132,7 +136,10 @@ const MediaSharingModal: React.FC<MediaSharingModalProps> = ({
   allowExternalVideo,
   stopExternalVideoShare,
   setPresentationFitToWidth,
+  isMobile,
+  isRTL,
 }) => {
+  const actionsBarStyle = layoutSelectOutput((i: Output) => i.actionBar);
   const { screenIsShared: isScreenGloballyBroadcasting } = useIsScreenGloballyBroadcasting();
   const [currentView, setCurrentView] = useState<'main' | 'presentation' | 'externalVideo' | 'cameraAsContent'>('main');
 
@@ -315,7 +322,12 @@ const MediaSharingModal: React.FC<MediaSharingModalProps> = ({
   return (
     <Styled.Overlay onClick={handleClose}>
       {/* Stop propagation so that clicking inside the modal doesn't close it */}
-      <Styled.ModalContainer onClick={(e) => e.stopPropagation()}>
+      <Styled.ModalContainer
+        onClick={(e) => e.stopPropagation()}
+        isMobile={isMobile}
+        isRTL={isRTL}
+        actionsBarHeight={actionsBarStyle.height}
+      >
         {!amIPresenter && amIModerator
           ? renderTakePresenterView()
           : (

@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { defineMessages, IntlShape } from 'react-intl';
 import { ActionButtonDropdownItemType } from 'bigbluebutton-html-plugin-sdk/dist/cjs/extensible-areas/action-button-dropdown-item/enums';
-
 import Styled from './styles';
 import MediaSharingModal from '/imports/ui/components/actions-bar/media-area/media-sharing/component';
 
@@ -30,6 +29,8 @@ interface MediaAreaProps {
   actionButtonDropdownItems: ActionButtonPluginItem[];
   isPresentationManagementDisabled?: boolean;
   setPresentationFitToWidth: (fitToWidth: boolean) => void;
+  isMobile: boolean;
+  isRTL: boolean;
 }
 
 const defaultProps = {
@@ -62,6 +63,8 @@ const MediaArea = (props: MediaAreaProps) => {
     allowExternalVideo,
     stopExternalVideoShare,
     setPresentationFitToWidth,
+    isMobile,
+    isRTL,
   } = props;
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -88,6 +91,8 @@ const MediaArea = (props: MediaAreaProps) => {
         onClick={handleToggleMenu}
       />
       <MediaSharingModal
+        isMobile={isMobile}
+        isRTL={isRTL}
         open={menuOpen}
         onClose={handleToggleMenu}
         intl={intl}

@@ -58,6 +58,8 @@ const MediaAreaContainer = (props: MediaAreaContainerProps) => {
 
   return (
     <MediaArea
+      isMobile={isMobile}
+      isRTL={isRTL}
       actionButtonDropdownItems={actionButtonDropdownItems}
       isCameraAsContentEnabled={isCameraAsContentEnabled}
       hasCameraAsContent={hasCameraAsContent}

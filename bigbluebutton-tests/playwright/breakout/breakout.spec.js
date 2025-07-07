@@ -122,14 +122,14 @@ test.describe.parallel('Breakout', { tag: '@ci' }, () => {
       await join.moveUserToOtherRoom();
     });
 
-    test('Export breakout room shared notes', async ({ browser, context, page }) => {
+    test('Export breakout room shared notes', { tag: '@flaky-media-sharing' }, async ({ browser, context, page }) => {
       const join = new Join(browser, context);
       await join.initPages(page);
       await join.create(true);
       await join.exportBreakoutNotes();
     });
 
-    test('Export breakout room whiteboard annotations', async ({ browser, context, page }) => {
+    test('Export breakout room whiteboard annotations', { tag: '@flaky-media-sharing' }, async ({ browser, context, page }) => {
       const join = new Join(browser, context);
       await join.initPages(page);
       await join.create(false, true);
@@ -143,7 +143,7 @@ test.describe.parallel('Breakout', { tag: '@ci' }, () => {
       await join.userCanChooseRoom();
     });
     
-    test('Breakout rooms can use different presentations', async ({ browser, context, page }) => {
+    test('Breakout rooms can use different presentations', { tag: '@flaky-media-sharing' }, async ({ browser, context, page }) => {
       const join = new Join(browser, context);
       await join.initPages(page);
       await join.breakoutWithDifferentPresentations();

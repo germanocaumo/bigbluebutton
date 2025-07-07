@@ -20,7 +20,7 @@ test.describe('Polling', { tag: '@ci' }, async () => {
     await polling.pollAnonymous();
   });
 
-  test('Create quick poll - from the slide', async () => {
+  test('Create quick poll - from the slide', { tag: '@flaky-media-sharing' }, async () => {
     await polling.quickPoll();
   });
 
@@ -36,7 +36,7 @@ test.describe('Polling', { tag: '@ci' }, async () => {
     await polling.manageResponseChoices();
   });
 
-  test('Start a poll without presentation', async () => {
+  test('Start a poll without presentation', { tag: '@flaky-media-sharing' }, async () => {
     await polling.startPollWithoutPresentation();
   });
 
@@ -48,7 +48,7 @@ test.describe('Polling', { tag: '@ci' }, async () => {
     await polling.allowMultipleChoices();
   });
 
-  test('Smart slides questions', async () => {
+  test('Smart slides questions', { tag: '@flaky-media-sharing' }, async () => {
     await polling.smartSlidesQuestions();
   });
 
@@ -61,7 +61,7 @@ test.describe('Polling', { tag: '@ci' }, async () => {
     await polling.pollResultsOnWhiteboard();
   });
 
-  test('Poll results in a different presentation', async ({}, testInfo) => {
+  test('Poll results in a different presentation', { tag: '@flaky-media-sharing' }, async ({}, testInfo) => {
     test.fixme(!testInfo.config.fullyParallel, 'Currently only works in parallel mode. Poll results not being displayed in the presentation');
     await polling.pollResultsInDifferentPresentation();
   });

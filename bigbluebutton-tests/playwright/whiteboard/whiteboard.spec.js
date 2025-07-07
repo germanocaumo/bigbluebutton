@@ -74,7 +74,7 @@ test.describe.parallel('Whiteboard tools', { tag: '@ci' }, () => {
     await textShape.stickyNote();
   });
 
-  test('Pan', async ({ browser, context, page }) => {
+  test('Pan', { tag: '@flaky-media-sharing' }, async ({ browser, context, page }) => {
     const tools = new ShapeTools(browser, context);
     await tools.initModPage(page, true);
     await tools.initUserPage(true, context);

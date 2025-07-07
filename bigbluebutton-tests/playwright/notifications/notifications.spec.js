@@ -83,7 +83,7 @@ test.describe.parallel('Notifications', { tag: '@ci' }, () => {
       await presenterNotifications.publishPollResults();
     });
 
-    test('Presentation upload notification', async ({ browser, context, page }) => {
+    test('Presentation upload notification', { tag: '@flaky-media-sharing' }, async ({ browser, context, page }) => {
       const presenterNotifications = new PresenterNotifications(browser, context);
       await presenterNotifications.initPages(page);
       await presenterNotifications.modPage.closeAllToastNotifications();

@@ -78,20 +78,20 @@ test.describe.parallel('Presentation', { tag: '@ci' }, () => {
 
   test.describe.parallel('Manage', () => {
     // https://docs.bigbluebutton.org/3.0/testing/release-testing/#uploading-a-presentation-automated
-    test('Upload single presentation', async ({ browser, context, page }) => {
+    test('Upload single presentation', { tag: '@flaky-media-sharing' }, async ({ browser, context, page }) => {
       const presentation = new Presentation(browser, context);
       await presentation.initPages(page);
       await presentation.uploadSinglePresentationTest();
     });
 
-    test('Upload Other Presentations Format', async ({ browser, context, page }) => {
+    test('Upload Other Presentations Format', { tag: '@flaky-media-sharing' }, async ({ browser, context, page }) => {
       const presentation = new Presentation(browser, context);
       await presentation.initPages(page);
       await presentation.uploadOtherPresentationsFormat();
     });
 
     // https://docs.bigbluebutton.org/3.0/testing/release-testing/#uploading-multiple-presentations-automated
-    test('Upload multiple presentations', async ({ browser, context, page }) => {
+    test('Upload multiple presentations', { tag: '@flaky-media-sharing' }, async ({ browser, context, page }) => {
       const presentation = new Presentation(browser, context);
       await presentation.initPages(page);
       await presentation.uploadMultiplePresentationsTest();
@@ -116,13 +116,13 @@ test.describe.parallel('Presentation', { tag: '@ci' }, () => {
       await presentation.removeAllPresentation();
     });
 
-    test('Upload and remove all presentations', async ({ browser, context, page }) => {
+    test('Upload and remove all presentations', { tag: '@flaky-media-sharing' }, async ({ browser, context, page }) => {
       const presentation = new Presentation(browser, context);
       await presentation.initPages(page);
       await presentation.uploadAndRemoveAllPresentations();
     });
 
-    test('Remove previous presentation from previous presenter', async ({ browser, context, page }) => {
+    test('Remove previous presentation from previous presenter', { tag: '@flaky-media-sharing' }, async ({ browser, context, page }) => {
       const presentation = new Presentation(browser, context);
       await presentation.initModPage(page, true);
       await presentation.initUserPage(true, context);

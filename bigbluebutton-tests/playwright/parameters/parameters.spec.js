@@ -487,7 +487,7 @@ test.describe.parallel('Custom Parameters', { tag: '@ci' }, () => {
       await customParam.hidePresentationOnJoin();
     });
 
-    test('Force restore presentation on new events', async ({ browser, context, page }) => {
+    test('Force restore presentation on new events', { tag: '@flaky-media-sharing' }, async ({ browser, context, page }) => {
       const customParam = new CustomParameters(browser, context);
       await customParam.initModPage(page);
       await customParam.initUserPage(true, context, { useModMeetingId: true, joinParameter: c.forceRestorePresentationOnNewEvents });

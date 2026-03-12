@@ -26,6 +26,7 @@ const BreakoutRoomContainer: React.FC = () => {
     durationInSeconds: m.durationInSeconds,
     createdTime: m.createdTime,
     meetingId: m.meetingId,
+    isBreakout: m.isBreakout,
     componentsFlags: m.componentsFlags,
   }));
 
@@ -85,7 +86,9 @@ const BreakoutRoomContainer: React.FC = () => {
   }
   if (!currentUserData || !breakoutData || !meetingData) return null; // or loading spinner or error
 
-  if (!hasBreakoutRoom && (currentUserData.isModerator ?? false)) {
+  const isBreakoutMeeting = meetingData?.isBreakout ?? false;
+
+  if (!hasBreakoutRoom && (currentUserData.isModerator ?? false) && !isBreakoutMeeting) {
     return (
       <SidebarCreateBreakoutContainer
         setIsOpen={(value: boolean) => {
@@ -97,13 +100,27 @@ const BreakoutRoomContainer: React.FC = () => {
     );
   }
 
-  if (hasBreakoutRoom && (currentUserData.isModerator ?? false)) {
+  if (hasBreakoutRoom && (currentUserData.isModerator ?? false) && !isBreakoutMeeting) {
     return (
       <RunningBreakoutRoom
         breakouts={breakoutData.breakoutRoom || []}
         userId={currentUserData.userId ?? ''}
         meetingId={meetingData.meetingId ?? ''}
         closePanel={closePanel}
+      />
+    );
+  }
+
+  if (isBreakoutMeeting) {
+    return (
+      <ParticipantBreakoutRoom
+        breakouts={[]}
+        meetingId={meetingData.meetingId ?? ''}
+        presenter={currentUserData.presenter ?? false}
+        userJoinedAudio={(currentUserData?.voice?.joined && !currentUserData?.voice?.deafened) ?? false}
+        closePanel={closePanel}
+        isInBreakout
+        breakoutMeetingId={meetingData.meetingId ?? ''}
       />
     );
   }

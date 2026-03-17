@@ -78,9 +78,8 @@ module BigBlueButton
                 pts_gaps << [prev_end, pts]
               end
 
-              prev_end_time = pts
-              prev_end_time += (row[:duration_time] * 1000).round unless row[:duration_time] == 'N/A'
-              prev_end = prev_end_time
+              prev_end = pts
+              prev_end += (row[:duration_time] * 1000).round unless row[:duration_time] == 'N/A'
             end
 
             _pid, status = Process.wait2(pid)

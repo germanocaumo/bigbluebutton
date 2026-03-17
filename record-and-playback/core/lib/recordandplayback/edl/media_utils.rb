@@ -19,6 +19,7 @@
 
 require 'shellwords'
 require 'csv'
+require 'tempfile'
 
 module BigBlueButton
   module EDL
@@ -79,6 +80,7 @@ module BigBlueButton
 
               prev_end_time = pts
               prev_end_time += (row[:duration_time] * 1000).round unless row[:duration_time] == 'N/A'
+              prev_end = prev_end_time
             end
 
             _pid, status = Process.wait2(pid)

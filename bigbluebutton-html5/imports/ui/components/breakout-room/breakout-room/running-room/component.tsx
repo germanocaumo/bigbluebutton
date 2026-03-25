@@ -699,7 +699,7 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
             <Styled.RoomCardMenuItem
               onClick={() => handleEnterRoom(openBreakout)}
               data-test="enterBreakoutRoomButton"
-              $disabled={openBreakout.isUserCurrentlyInRoom || breakouts.some((b) => b.isUserCurrentlyInRoom)}
+              $disabled={openBreakout.isUserCurrentlyInRoom}
             >
               {openBreakout.isUserCurrentlyInRoom
                 ? intl.formatMessage(intlMessages.alreadyConnected)

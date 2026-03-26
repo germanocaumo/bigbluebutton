@@ -168,7 +168,7 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
   }, [breakouts]);
 
   const unassignedUsers = useMemo(
-    () => allUsers.filter((u: { userId: string }) => !assignedUserIds.has(u.userId)),
+    () => allUsers.filter((u: { userId: string; isModerator?: boolean }) => !u.isModerator && !assignedUserIds.has(u.userId)),
     [allUsers, assignedUserIds],
   );
 

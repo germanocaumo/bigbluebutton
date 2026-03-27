@@ -76,6 +76,7 @@ const SidebarRoomAssignment: React.FC<ChildComponentProps> = ({
   return (
     <>
       <Styled.UsersSection
+        id="breakoutBox-0"
         onDrop={drop(0)}
         onDragOver={allowDrop}
       >
@@ -109,6 +110,7 @@ const SidebarRoomAssignment: React.FC<ChildComponentProps> = ({
 
           return (
             <Styled.RoomCard
+              id={`breakoutBox-${roomNum}`}
               key={`room-card-${roomNum}`}
               onDrop={drop(roomNum)}
               onDragOver={allowDrop}
@@ -126,11 +128,13 @@ const SidebarRoomAssignment: React.FC<ChildComponentProps> = ({
                     }}
                     autoFocus
                     onClick={(e) => e.stopPropagation()}
+                    data-test={`roomName-${roomNum}`}
                   />
                 ) : (
                   <Styled.RoomCardName
                     onClick={() => setEditingRoom(roomNum)}
                     style={{ cursor: 'pointer' }}
+                    data-test={`${roomName}`}
                   >
                     {roomName}
                   </Styled.RoomCardName>

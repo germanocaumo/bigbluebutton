@@ -168,7 +168,9 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
   }, [breakouts]);
 
   const unassignedUsers = useMemo(
-    () => allUsers.filter((u: { userId: string; isModerator?: boolean }) => !u.isModerator && !assignedUserIds.has(u.userId)),
+    () => allUsers.filter(
+      (u: { userId: string; isModerator?: boolean }) => !u.isModerator && !assignedUserIds.has(u.userId),
+    ),
     [allUsers, assignedUserIds],
   );
 
@@ -420,6 +422,7 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
             $variant="minus"
             onClick={() => adjustTime(-1)}
             aria-label="Decrease time"
+            data-test="decreaseBreakoutTimeButton"
           >
             −
           </Styled.TimerTimeBtn>
@@ -435,6 +438,7 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
                 handleTimerInputChange('h', Number(e.target.value));
               }}
               aria-label="Hours"
+              data-test="breakoutRoomTimerHoursInput"
             />
             <Styled.TimerColon>:</Styled.TimerColon>
             <Styled.TimerInput
@@ -448,6 +452,7 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
                 handleTimerInputChange('m', Number(e.target.value));
               }}
               aria-label="Minutes"
+              data-test="breakoutRoomTimerMinutesInput"
             />
             <Styled.TimerColon>:</Styled.TimerColon>
             <Styled.TimerInput
@@ -467,6 +472,7 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
             $variant="plus"
             onClick={() => adjustTime(1)}
             aria-label="Increase time"
+            data-test="increaseBreakoutTimeButton"
           >
             +
           </Styled.TimerTimeBtn>
@@ -490,6 +496,7 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
               ev.currentTarget.classList.remove('drag-over');
             }}
             onDrop={handleDrop(meetingId)}
+            id="breakoutBox-0"
           >
             <Styled.UsersSectionHeader>
               <span>{intl.formatMessage(intlMessages.unassignedUsers)}</span>
@@ -529,6 +536,7 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
 
             return (
               <Styled.RoomCard
+                id={`breakoutBox-${breakout.sequence}`}
                 key={breakout.breakoutRoomMeetingId}
                 onDrop={handleDrop(breakout.breakoutRoomMeetingId)}
                 onDragOver={(ev) => {
@@ -566,6 +574,7 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
                       <Styled.RoomCardName
                         title={displayName}
                         onClick={() => setEditingRoomId(breakout.breakoutRoomMeetingId)}
+                        data-test={`${roomName}`}
                       >
                         {displayName}
                       </Styled.RoomCardName>
@@ -618,6 +627,7 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
                             breakout.breakoutRoomMeetingId,
                             participant.user.name,
                           )}
+                          data-test={`userNameBreakoutRoom-${roomName}`}
                         >
                           <span>
                             {participant.user.name}
@@ -698,7 +708,7 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
           <Styled.RoomCardMenu>
             <Styled.RoomCardMenuItem
               onClick={() => handleEnterRoom(openBreakout)}
-              data-test="enterBreakoutRoomButton"
+              data-test={openBreakout.isUserCurrentlyInRoom ? 'alreadyConnected' : 'joinRoom'}
               $disabled={openBreakout.isUserCurrentlyInRoom}
             >
               {openBreakout.isUserCurrentlyInRoom

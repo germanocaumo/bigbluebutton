@@ -426,7 +426,7 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
           >
             −
           </Styled.TimerTimeBtn>
-          <Styled.TimerDisplay>
+          <Styled.TimerDisplay data-test="breakoutRemainingTime">
             <Styled.TimerInput
               type="number"
               min={0}
@@ -672,11 +672,13 @@ const RunningBreakoutRoom: React.FC<RunningBreakoutRoomProps> = ({
                 if (e.key === 'Enter') handleMegaphoneSend();
               }}
               placeholder={intl.formatMessage(intlMessages.inputPlaceholder, { chatName: chatTitle })}
+              data-test="messageInput"
             />
             <Styled.MegaphoneSendBtn
               type="button"
               onClick={handleMegaphoneSend}
               disabled={!megaphoneMessage.trim()}
+              data-test="sendMessageButton"
             >
               <Icon iconName="send" />
             </Styled.MegaphoneSendBtn>

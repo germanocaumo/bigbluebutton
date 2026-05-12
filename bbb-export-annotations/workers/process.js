@@ -6,6 +6,7 @@ import cp from 'child_process';
 import WorkerStarter from '../lib/utils/worker-starter.js';
 import {workerData} from 'worker_threads';
 import path from 'path';
+import {pathToFileURL} from 'url';
 import sanitize from 'sanitize-filename';
 import redis from 'redis';
 import {PresAnnStatusMsg} from '../lib/utils/message-builder.js';
@@ -378,9 +379,12 @@ async function processPresentationAnnotations() {
           'xmlns:xlink': 'http://www.w3.org/1999/xlink',
         });
 
+    const backgroundFile = path.join(dropbox,
+        `slide${currentSlide.page}.${backgroundFormat}`);
+
     // Add the image element
     canvas
-        .image(`file://${dropbox}/slide${currentSlide.page}.${backgroundFormat}`)
+        .image(pathToFileURL(backgroundFile).href)
         .size(scaledWidth, scaledHeight);
 
     // Add a group element with class 'whiteboard'

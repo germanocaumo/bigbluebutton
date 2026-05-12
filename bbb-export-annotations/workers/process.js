@@ -450,21 +450,28 @@ async function processPresentationAnnotations() {
     '-dNOPAUSE',
     '-dAutoRotatePages=/None',
     '-sDEVICE=pdfwrite',
-    `-sOUTPUTFILE="${path.join(outputDir, serverFilenameWithExtension)}"`,
-    `-dBATCH`].concat(ghostScriptInput);
+    `-sOUTPUTFILE=${path.join(outputDir, serverFilenameWithExtension)}`,
+    '-dBATCH'].concat(ghostScriptInput);
 
   // Resulting PDF file is stored in the presentation dir
-  try {
-    cp.spawnSync(config.shared.ghostscript, mergePDFs, {shell: false});
-  } catch (error) {
-    const errorMessage = 'GhostScript failed to merge PDFs in job' +
-      `${jobId}: ${error.message}`;
-    return logger.error(errorMessage);
+  const outputFile = path.join(outputDir, serverFilenameWithExtension);
+  const result = cp.spawnSync(config.shared.ghostscript, mergePDFs,
+      {shell: false});
+
+  if (result.error || result.status !== 0 || !fs.existsSync(outputFile)) {
+    const errorMessage = result.error?.message ||
+      result.stderr?.toString() ||
+      `GhostScript exited with status ${result.status}`;
+    statusUpdate.setError();
+    await client.publish(config.redis.channels.publish,
+        statusUpdate.build());
+    await client.disconnect();
+    return logger.error(`GhostScript failed to merge PDFs in job ${jobId}: ` +
+      errorMessage);
   }
 
   // Launch Notifier Worker depending on job type
-  logger.info('Saved PDF at ',
-      `${outputDir}/${serverFilenameWithExtension}`);
+  logger.info('Saved PDF at ', outputFile);
 
   const notifier = new WorkerStarter({
     jobType: exportJob.jobType, jobId,

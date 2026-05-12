@@ -380,9 +380,8 @@ export class CustomParameters extends MultiUsers {
       'should display the presentation title inside the breakout room',
     );
     await breakoutUserPage.wasRemoved(e.whiteboard, 'should not display the whiteboard inside the breakout room');
-    await this.modPage.waitAndClick(e.breakoutOptionsMenu);
     await this.modPage.closeAllToastNotifications();
-    await this.modPage.waitAndClick(e.endAllBreakouts);
+    await this.modPage.waitAndClick(e.finishBreakoutButton);
 
     await this.modPage.hasElement(
       e.restorePresentation,
@@ -684,6 +683,8 @@ export class CustomParameters extends MultiUsers {
 
     await this.modPage.shareWebcam();
     await this.userPage.shareWebcam();
+    await this.modPage.waitForSelector(e.webcamContainer, VIDEO_LOADING_WAIT_TIME);
+    await this.userPage.waitForSelector(e.webcamContainer, VIDEO_LOADING_WAIT_TIME);
 
     await checkScreenshots(
       this,
@@ -741,7 +742,12 @@ export class CustomParameters extends MultiUsers {
     await this.modPage.hasElement(e.breakoutBox0, 'should display the breakout box for unassigned users,');
 
     await this.modPage.hasElement(e.breakoutBox1, 'should display the breakout box for room 1');
-    await this.modPage.hasElementCount(`${e.breakoutBox1} > p`, 1, 'should display only 1 user in the breakout room 1');
+    await this.modPage.hasElementCount(
+      `${e.breakoutBox1} div[draggable="true"]`,
+      1,
+      'should display only 1 user in the breakout room 1',
+    );
+    await this.modPage.waitAndClick(e.roomName1);
     await this.modPage.hasValue(
       e.roomNameInput1,
       'Room 1',
@@ -749,9 +755,14 @@ export class CustomParameters extends MultiUsers {
     );
 
     await this.modPage.hasElement(e.breakoutBox2, 'should display the breakout box for room 2');
-    await this.modPage.hasElementCount(`${e.breakoutBox2} > p`, 1, 'should display only 1 user in the breakout room 2');
+    await this.modPage.hasElementCount(
+      `${e.breakoutBox2} div[draggable="true"]`,
+      1,
+      'should display only 1 user in the breakout room 2',
+    );
+    await this.modPage.waitAndClick(e.roomName2);
     await this.modPage.hasValue(
-      `input[data-test=roomName-2]`,
+      e.roomNameInput2,
       'Room 2',
       'should display the correct name of the group for breakout room 2',
     );
@@ -760,7 +771,7 @@ export class CustomParameters extends MultiUsers {
 
     await this.userPage.hasElement(e.modalConfirmButton, 'should appear the modal confirm button to join breakout');
     await this.userPage.hasText(
-      e.fullscreenModal,
+      e.breakoutJoinConfirmationDialog,
       'Room 1',
       'should display the correct breakout room name in the modal',
     );
@@ -784,7 +795,7 @@ export class CustomParameters extends MultiUsers {
 
     await this.userPage2.hasElement(e.modalConfirmButton, 'should appear the modal confirm button to join breakout');
     await this.userPage2.hasText(
-      e.fullscreenModal,
+      e.breakoutJoinConfirmationDialog,
       'Room 2',
       'should display the correct breakout room name in the modal',
     );
@@ -818,6 +829,8 @@ export class CustomParameters extends MultiUsers {
 
     await this.modPage.shareWebcam();
     await this.userPage.shareWebcam();
+    await this.modPage.waitForSelector(e.webcamContainer, VIDEO_LOADING_WAIT_TIME);
+    await this.userPage.waitForSelector(e.webcamContainer, VIDEO_LOADING_WAIT_TIME);
 
     await checkScreenshots(
       this,
@@ -879,6 +892,8 @@ export class CustomParameters extends MultiUsers {
 
     await this.modPage.shareWebcam();
     await this.userPage.shareWebcam();
+    await this.modPage.waitForSelector(e.webcamContainer, VIDEO_LOADING_WAIT_TIME);
+    await this.userPage.waitForSelector(e.webcamContainer, VIDEO_LOADING_WAIT_TIME);
 
     await checkScreenshots(
       this,

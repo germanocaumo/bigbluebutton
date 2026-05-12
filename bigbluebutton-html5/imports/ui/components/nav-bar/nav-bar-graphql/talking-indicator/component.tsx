@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import Auth from '/imports/ui/services/auth/index';
-import useMeeting from '/imports/ui/core/hooks/useMeeting';
 import { uniqueId } from '/imports/utils/string-utils';
 import Styled from './styles';
 import { User } from '/imports/ui/Types/user';
@@ -11,8 +10,7 @@ import useToggleVoice from '../../../audio/audio-graphql/hooks/useToggleVoice';
 import { setTalkingIndicatorList } from '/imports/ui/core/hooks/useTalkingIndicator';
 import useTalkingUsers from '/imports/ui/core/hooks/useTalkingUsers';
 import { partition } from '/imports/utils/array-utils';
-import logger from '/imports/startup/client/logger';
-import connectionStatus from '/imports/ui/core/graphql/singletons/connectionStatus';
+import { VoiceUserMetadata } from '/imports/ui/core/hooks/types';
 
 const TALKING_INDICATORS_MAX = 8;
 
@@ -47,10 +45,9 @@ interface TalkingIndicatorProps {
   talkingUsers: {
     talking: boolean;
     muted: boolean;
-    user: { color: string; speechLocale?: string; name: string; role?: string };
+    user: VoiceUserMetadata;
     userId: string;
   }[];
-  isBreakout: boolean;
   moreThanMaxIndicators: boolean;
   isModerator: boolean;
   toggleVoice: (userId: string, muted: boolean) => void;
@@ -58,7 +55,6 @@ interface TalkingIndicatorProps {
 
 const TalkingIndicator: React.FC<TalkingIndicatorProps> = ({
   talkingUsers,
-  isBreakout,
   moreThanMaxIndicators,
   isModerator,
   toggleVoice,
@@ -99,6 +95,7 @@ const TalkingIndicator: React.FC<TalkingIndicatorProps> = ({
     const {
       talking,
       muted,
+      color,
       speechLocale,
       name,
       userId,
@@ -106,6 +103,7 @@ const TalkingIndicator: React.FC<TalkingIndicatorProps> = ({
 
     const isYou = talkingUser.userId === Auth.userID;
     const isTalkingUserMod = talkingUser.role === ROLE_MODERATOR;
+    const isMuteActionAvailable = isModerator;
 
     const ariaLabel = intl.formatMessage(talking
       ? intlMessages.isTalking : intlMessages.wasTalking, {
@@ -129,7 +127,7 @@ const TalkingIndicator: React.FC<TalkingIndicatorProps> = ({
         <Styled.TalkingIndicatorButton
           $spoke={!talking || undefined}
           $muted={muted || undefined}
-          $isViewer={!isModerator || undefined}
+          $isViewer={!isMuteActionAvailable || undefined}
           $talkingUserIsViewer={!isTalkingUserMod && !isYou}
           $you={isYou}
           $moderator={isTalkingUserMod}
@@ -137,10 +135,10 @@ const TalkingIndicator: React.FC<TalkingIndicatorProps> = ({
           onClick={() => {
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore - call signature is misse due the function being wrapped
-            muteUser(userId, muted, isBreakout, isModerator, toggleVoice);
+            muteUser(userId, muted, isMuteActionAvailable, toggleVoice);
           }}
           label={name}
-          tooltipLabel={!muted && isModerator
+          tooltipLabel={!muted && isMuteActionAvailable
             ? `${intl.formatMessage(intlMessages.muteLabel)} ${name}`
             : null}
           data-test={talking ? 'isTalking' : 'wasTalking'}
@@ -149,6 +147,14 @@ const TalkingIndicator: React.FC<TalkingIndicatorProps> = ({
           color="primary"
           icon={icon}
           size="lg"
+          style={
+            (isMuteActionAvailable && color)
+              ? {
+                backgroundColor: color,
+                border: `solid 2px ${color}`,
+              }
+              : undefined
+          }
         >
           {talking ? (
             <Styled.Hidden id="description">
@@ -205,14 +211,6 @@ const TalkingIndicatorContainer: React.FC = () => {
     isModerator: u?.isModerator,
   }));
 
-  const {
-    data: currentMeeting,
-    loading: isBreakoutLoading,
-    errors: isBreakoutError,
-  } = useMeeting((m) => ({
-    isBreakout: m.isBreakout,
-  }));
-
   const toggleVoice = useToggleVoice();
   const { data: talkingUsersData, loading: talkingUsersLoading } = useTalkingUsers();
   const talkingUsers = useMemo(() => {
@@ -246,28 +244,12 @@ const TalkingIndicatorContainer: React.FC = () => {
     ].slice(0, TALKING_INDICATORS_MAX);
   }, [talkingUsersData]);
 
-  if (talkingUsersLoading || isBreakoutLoading) return null;
+  if (talkingUsersLoading) return null;
 
-  if (isBreakoutError) {
-    connectionStatus.setSubscriptionFailed(true);
-    logger.error(
-      {
-        logCode: 'subscription_Failed',
-        extraInfo: {
-          error: isBreakoutError,
-        },
-      },
-      'Subscription failed to load',
-    );
-    return null;
-  }
-
-  const isBreakout = currentMeeting?.isBreakout ?? false;
   setTalkingIndicatorList(talkingUsers.map(({ user, ...rest }) => ({ ...rest, ...user })));
   return (
     <TalkingIndicator
       talkingUsers={talkingUsers}
-      isBreakout={isBreakout}
       moreThanMaxIndicators={talkingUsers.length >= TALKING_INDICATORS_MAX}
       isModerator={currentUser?.isModerator ?? false}
       toggleVoice={toggleVoice}

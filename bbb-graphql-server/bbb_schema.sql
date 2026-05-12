@@ -1,5 +1,6 @@
 --unaccent will be used to create nameSortable
 CREATE EXTENSION IF NOT EXISTS unaccent;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE OR REPLACE FUNCTION immutable_lower_unaccent(text)
 				RETURNS text AS $$
 				SELECT lower(unaccent('unaccent', $1))
@@ -968,6 +969,7 @@ LEFT JOIN "user_connectionStatusMetrics" csm ON csm."meetingId" = u."meetingId" 
 order by u."meetingId", u."userId", cs."sessionToken", csm."lastOccurrenceAt" desc;
 
 CREATE INDEX "idx_user_connectionStatusMetrics_UnstableReport" ON "user_connectionStatusMetrics" ("meetingId", "userId") WHERE "status" != 'normal';
+CREATE INDEX "idx_user_name_trgm" ON "user" USING gin ("name" gin_trgm_ops) WHERE "currentlyInMeeting" IS TRUE;
 
 --ALTER TABLE "user_connectionStatus" ADD COLUMN "applicationRttInMs" NUMERIC GENERATED ALWAYS AS
 --(CASE WHEN  "connectionAliveAt" IS NULL OR "userClientResponseAt" IS NULL THEN NULL
@@ -1067,17 +1069,26 @@ CREATE OR REPLACE VIEW "v_user_whiteboardWriteAccess" AS
 select "meetingId", "userId", "name", "presenter", "isModerator"
 FROM "user"
 WHERE "user"."currentlyInMeeting" is true
-AND "user"."whiteboardWriteAccess" is true;
+AND (
+        "user"."whiteboardWriteAccess" is true
+        OR "user"."presenter" is true
+    );
 
 CREATE OR REPLACE VIEW "v_user_whiteboardCursorAccess" AS
 select "meetingId", "userId", "name", "presenter", "isModerator"
 FROM "user"
 WHERE "user"."currentlyInMeeting" is true
-AND "user"."whiteboardWriteAccess" is true;
+AND (
+        "user"."whiteboardWriteAccess" is true
+        OR "user"."presenter" is true
+    );
 
 CREATE INDEX "idx_user_whiteboardWriteAccess" ON "user"("meetingId", "userId") INCLUDE ("meetingId", "userId", "name", "presenter", "isModerator")
 WHERE "user"."currentlyInMeeting" is true
-AND "user"."whiteboardWriteAccess" is true;
+AND (
+        "user"."whiteboardWriteAccess" is true
+        OR "user"."presenter" is true
+    );
 
 
 create unlogged table "user_activity"(
@@ -1095,12 +1106,15 @@ create index "idx_user_activity_orderBy" on "user_activity" ("meetingId", "userI
 
 
 CREATE UNLOGGED TABLE "chat" (
-	"meetingId" varchar(100) REFERENCES "meeting"("meetingId") ON DELETE CASCADE,
-	"chatId"  varchar(100),
-	"access" varchar(20),
-	"createdBy" varchar(25),
-	"totalMessages" integer,
-	CONSTRAINT "chat_pkey" PRIMARY KEY ("meetingId", "chatId")
+    "meetingId" varchar(100) REFERENCES "meeting"("meetingId") ON DELETE CASCADE,
+    "chatId"  varchar(100),
+    "access" varchar(20),
+    "createdBy" varchar(25),
+    "totalMessages" integer,
+    "pinnedMessageId" varchar(100),
+    "pinnedByUserId" varchar(100),
+    "pinnedAt" timestamp with time zone,
+    CONSTRAINT "chat_pkey" PRIMARY KEY ("meetingId", "chatId")
 );
 CREATE INDEX "idx_chat_pk_reverse" ON "chat"("chatId","meetingId");
 
@@ -1215,12 +1229,12 @@ BEGIN
         SET "totalMessages" = COALESCE("totalMessages", 0) + 1
         WHERE "meetingId" = NEW."meetingId"
         AND "chatId" = NEW."chatId";
-	ELSIF TG_OP = 'DELETE' THEN
+       ELSIF TG_OP = 'DELETE' THEN
         UPDATE "chat"
         SET "totalMessages" = GREATEST(COALESCE("totalMessages", 0) - 1, 0)
         WHERE "meetingId" = OLD."meetingId"
         AND "chatId" = OLD."chatId";
-	END IF;
+       END IF;
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
@@ -1243,7 +1257,7 @@ BEGIN
      AND u."userId"    = cu."userId"
     WHERE cm."meetingId" = cu."meetingId"
       AND cm."chatId"    = cu."chatId"
-      AND cm."senderId" <> cu."userId"
+      AND cm."senderId" IS DISTINCT FROM cu."userId"
       AND cm."createdAt" > COALESCE(cu."lastSeenAt", u."registeredAt")
   )
   WHERE cu."meetingId" = _meetingId
@@ -1257,7 +1271,7 @@ BEGIN
        AND u."userId"    = cu."userId"
       WHERE cm."meetingId" = cu."meetingId"
         AND cm."chatId"    = cu."chatId"
-        AND cm."senderId" <> cu."userId"
+        AND cm."senderId" IS DISTINCT FROM cu."userId"
         AND cm."createdAt" > COALESCE(cu."lastSeenAt", u."registeredAt")
     );
 END;
@@ -1308,7 +1322,7 @@ BEGIN
   SET "totalUnreadMessages" = coalesce("totalUnreadMessages",0) + 1
   WHERE cu."meetingId" = NEW."meetingId"
     AND cu."chatId"    = NEW."chatId"
-    AND cu."userId"    != NEW."senderId";
+    AND cu."userId" IS DISTINCT FROM NEW."senderId";
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -1382,7 +1396,10 @@ SELECT 	"user"."meetingId",
 		"chat"."totalMessages",
 		cu."totalUnreadMessages" AS "totalUnread",
 		cu."lastSeenAt",
-		CASE WHEN "chat"."access" = 'PUBLIC_ACCESS' THEN true ELSE false end "public"
+		CASE WHEN "chat"."access" = 'PUBLIC_ACCESS' THEN true ELSE false end "public",
+        "chat"."pinnedMessageId",
+        "chat"."pinnedByUserId",
+        "chat"."pinnedAt"
 FROM "user"
 JOIN "chat_user" cu ON cu."meetingId" = "user"."meetingId" AND cu."userId" = "user"."userId"
 --now it will always add chat_user for public chat onUserJoin
@@ -1576,10 +1593,10 @@ SELECT pres_presentation."meetingId",
     pres_page."height",
     pres_page."viewBoxWidth",
     pres_page."viewBoxHeight",
-    (pres_page."width" * LEAST(pres_page."maxImageWidth" / pres_page."width", pres_page."maxImageHeight" / pres_page."height")) AS "scaledWidth",
-    (pres_page."height" * LEAST(pres_page."maxImageWidth" / pres_page."width", pres_page."maxImageHeight" / pres_page."height")) AS "scaledHeight",
-    (pres_page."width" * pres_page."widthRatio" / 100 * LEAST(pres_page."maxImageWidth" / pres_page."width", pres_page."maxImageHeight" / pres_page."height")) AS "scaledViewBoxWidth",
-    (pres_page."height" * pres_page."heightRatio" / 100 * LEAST(pres_page."maxImageWidth" / pres_page."width", pres_page."maxImageHeight" / pres_page."height")) AS "scaledViewBoxHeight",
+    (pres_page."width" * LEAST(pres_page."maxImageWidth" / NULLIF(pres_page."width", 0), pres_page."maxImageHeight" / NULLIF(pres_page."height", 0))) AS "scaledWidth",
+    (pres_page."height" * LEAST(pres_page."maxImageWidth" / NULLIF(pres_page."width", 0), pres_page."maxImageHeight" / NULLIF(pres_page."height", 0))) AS "scaledHeight",
+    (pres_page."width" * pres_page."widthRatio" / 100 * LEAST(pres_page."maxImageWidth" / NULLIF(pres_page."width", 0), pres_page."maxImageHeight" / NULLIF(pres_page."height", 0))) AS "scaledViewBoxWidth",
+    (pres_page."height" * pres_page."heightRatio" / 100 * LEAST(pres_page."maxImageWidth" / NULLIF(pres_page."width", 0), pres_page."maxImageHeight" / NULLIF(pres_page."height", 0))) AS "scaledViewBoxHeight",
     pres_page."uploadCompleted",
     pres_page."infiniteWhiteboard",
     pres_page."fitToWidth"
@@ -1611,10 +1628,10 @@ SELECT pres_presentation."meetingId",
     pres_page."height",
     pres_page."viewBoxWidth",
     pres_page."viewBoxHeight",
-    (pres_page."width" * LEAST(pres_page."maxImageWidth" / pres_page."width", pres_page."maxImageHeight" / pres_page."height")) AS "scaledWidth",
-    (pres_page."height" * LEAST(pres_page."maxImageWidth" / pres_page."width", pres_page."maxImageHeight" / pres_page."height")) AS "scaledHeight",
-    (pres_page."width" * pres_page."widthRatio" / 100 * LEAST(pres_page."maxImageWidth" / pres_page."width", pres_page."maxImageHeight" / pres_page."height")) AS "scaledViewBoxWidth",
-    (pres_page."height" * pres_page."heightRatio" / 100 * LEAST(pres_page."maxImageWidth" / pres_page."width", pres_page."maxImageHeight" / pres_page."height")) AS "scaledViewBoxHeight",
+    (pres_page."width" * LEAST(pres_page."maxImageWidth" / NULLIF(pres_page."width", 0), pres_page."maxImageHeight" / NULLIF(pres_page."height", 0))) AS "scaledWidth",
+    (pres_page."height" * LEAST(pres_page."maxImageWidth" / NULLIF(pres_page."width", 0), pres_page."maxImageHeight" / NULLIF(pres_page."height", 0))) AS "scaledHeight",
+    (pres_page."width" * pres_page."widthRatio" / 100 * LEAST(pres_page."maxImageWidth" / NULLIF(pres_page."width", 0), pres_page."maxImageHeight" / NULLIF(pres_page."height", 0))) AS "scaledViewBoxWidth",
+    (pres_page."height" * pres_page."heightRatio" / 100 * LEAST(pres_page."maxImageWidth" / NULLIF(pres_page."width", 0), pres_page."maxImageHeight" / NULLIF(pres_page."height", 0))) AS "scaledViewBoxHeight",
     pres_page."infiniteWhiteboard",
     pres_page."fitToWidth",
     (
@@ -2073,28 +2090,28 @@ CREATE OR REPLACE VIEW "v_user_breakoutRoom_lastJoinedRoom" AS
 select "breakoutRoom_user"."meetingId", "breakoutRoom_user"."userId", "breakoutRoom_user"."breakoutRoomMeetingId", "breakoutRoom_user"."isUserCurrentlyInRoom",
 		"breakoutRoom"."sequence", "breakoutRoom"."shortName", "breakoutRoom"."isDefaultName"
 from "breakoutRoom_user"
-join "breakoutRoom" on "breakoutRoom"."breakoutRoomMeetingId" = "breakoutRoom_user"."breakoutRoomMeetingId" and "breakoutRoom"."endedAt" IS NULL
+join "breakoutRoom" on "breakoutRoom"."breakoutRoomMeetingId" = "breakoutRoom_user"."breakoutRoomMeetingId"
 where "breakoutRoom_user"."isLastJoinedRoom" is true;
 
 CREATE OR REPLACE VIEW "v_user_current_breakoutRoom_lastJoinedRoom" AS
 select "breakoutRoom_user"."meetingId", "breakoutRoom_user"."userId", "breakoutRoom_user"."breakoutRoomMeetingId", "breakoutRoom_user"."isUserCurrentlyInRoom",
 		"breakoutRoom"."sequence", "breakoutRoom"."shortName", "breakoutRoom"."isDefaultName"
 from "breakoutRoom_user"
-join "breakoutRoom" on "breakoutRoom"."breakoutRoomMeetingId" = "breakoutRoom_user"."breakoutRoomMeetingId" and "breakoutRoom"."endedAt" IS NULL
+join "breakoutRoom" on "breakoutRoom"."breakoutRoomMeetingId" = "breakoutRoom_user"."breakoutRoomMeetingId"
 where "breakoutRoom_user"."isLastJoinedRoom" is true;
 
 CREATE OR REPLACE VIEW "v_user_breakoutRoom_lastAssignedRoom" AS
 select "breakoutRoom_user"."meetingId", "breakoutRoom_user"."userId", "breakoutRoom_user"."breakoutRoomMeetingId", "breakoutRoom_user"."isUserCurrentlyInRoom",
 		"breakoutRoom"."sequence", "breakoutRoom"."shortName", "breakoutRoom"."isDefaultName"
 from "breakoutRoom_user"
-join "breakoutRoom" on "breakoutRoom"."breakoutRoomMeetingId" = "breakoutRoom_user"."breakoutRoomMeetingId" and "breakoutRoom"."endedAt" IS NULL
+join "breakoutRoom" on "breakoutRoom"."breakoutRoomMeetingId" = "breakoutRoom_user"."breakoutRoomMeetingId"
 where "breakoutRoom_user"."isLastAssignedRoom" is true;
 
 CREATE OR REPLACE VIEW "v_user_current_breakoutRoom_lastAssignedRoom" AS
 select "breakoutRoom_user"."meetingId", "breakoutRoom_user"."userId", "breakoutRoom_user"."breakoutRoomMeetingId", "breakoutRoom_user"."isUserCurrentlyInRoom",
 		"breakoutRoom"."sequence", "breakoutRoom"."shortName", "breakoutRoom"."isDefaultName"
 from "breakoutRoom_user"
-join "breakoutRoom" on "breakoutRoom"."breakoutRoomMeetingId" = "breakoutRoom_user"."breakoutRoomMeetingId" and "breakoutRoom"."endedAt" IS NULL
+join "breakoutRoom" on "breakoutRoom"."breakoutRoomMeetingId" = "breakoutRoom_user"."breakoutRoomMeetingId"
 where "breakoutRoom_user"."isLastAssignedRoom" is true;
 
 CREATE OR REPLACE VIEW "v_breakoutRoom_participant" as
@@ -2169,7 +2186,8 @@ group by u."meetingId", u."userId";
 create unlogged table "sharedNotes" (
     "meetingId" varchar(100) references "meeting"("meetingId") ON DELETE CASCADE,
     "sharedNotesExtId" varchar(25),
-    "padId" varchar(25),
+    "padId" varchar(100),
+    "sharedNotesEditor" varchar(25),
     "model" varchar(25),
     "name" varchar(25),
     "pinned" boolean,
@@ -2495,6 +2513,12 @@ select "meeting"."meetingId",
         ) as "isSharedNotesPinned",
         exists (
             select 1
+            from "sharedNotes"
+            where "sharedNotes"."meetingId" = "meeting"."meetingId"
+            and "sharedNotes"."sharedNotesEditor" = 'etherpad'
+        ) as "isEtherpadSharedNotes",
+        exists (
+            select 1
             from "v_pres_page_curr"
             where "v_pres_page_curr"."meetingId" = "meeting"."meetingId"
         ) as "hasCurrentPresentation"
@@ -2513,29 +2537,36 @@ CREATE UNLOGGED TABLE "user_livekit"(
 CREATE INDEX "idx_user_livekit_token" ON "user_livekit"("livekitToken");
 CREATE VIEW "v_user_livekit" AS SELECT * FROM "user_livekit";
 
-CREATE UNLOGGED TABLE "audioGroup" (
+CREATE UNLOGGED TABLE "mediaGroup" (
 	"meetingId" 			varchar(100),
 	"groupId"					varchar(100),
+	"mediaType"				varchar(50) NOT NULL,
+	"locked"					boolean NOT NULL DEFAULT false,
+	"record"					boolean NOT NULL DEFAULT false,
 	"createdBy"				varchar(50),
-	CONSTRAINT "audioGroup_pkey" PRIMARY KEY ("meetingId", "groupId"),
+	CONSTRAINT "mediaGroup_pkey" PRIMARY KEY ("meetingId", "groupId"),
 	FOREIGN KEY ("meetingId") REFERENCES "meeting"("meetingId") ON DELETE CASCADE
 );
 
-CREATE VIEW "v_audioGroup" AS SELECT * FROM "audioGroup";
+CREATE VIEW "v_mediaGroup" AS SELECT * FROM "mediaGroup";
 
-CREATE UNLOGGED TABLE "user_audioGroup" (
+CREATE UNLOGGED TABLE "user_mediaGroup" (
 	"meetingId"					varchar(100),
 	"userId"						varchar(50),
 	"groupId"						varchar(100),
-	"participantType"		varchar(50),
-	"active"						boolean,
-	CONSTRAINT "user_audioGroup_pkey" PRIMARY KEY ("meetingId", "userId", "groupId"),
-	FOREIGN KEY ("meetingId", "groupId") REFERENCES "audioGroup"("meetingId", "groupId") ON DELETE CASCADE
+	"sender"						boolean NOT NULL DEFAULT false,
+	"receiver"					boolean NOT NULL DEFAULT false,
+	"active"						boolean NOT NULL DEFAULT false,
+	CONSTRAINT "user_mediaGroup_pkey" PRIMARY KEY ("meetingId", "userId", "groupId"),
+	FOREIGN KEY ("meetingId", "groupId") REFERENCES "mediaGroup"("meetingId", "groupId") ON DELETE CASCADE,
+	FOREIGN KEY ("meetingId", "userId") REFERENCES "user"("meetingId", "userId") ON DELETE CASCADE
 );
 
-CREATE INDEX "idx_user_audioGroup_userId_reverse" ON "user_audioGroup"("userId", "meetingId");
-CREATE INDEX "idx_user_audioGroup_groupId_participantType" ON "user_audioGroup"("meetingId", "groupId", "participantType");
-CREATE OR REPLACE VIEW "v_user_audioGroup" AS SELECT * FROM "user_audioGroup";
+CREATE INDEX "idx_user_mediaGroup_userId_reverse" ON "user_mediaGroup"("userId", "meetingId");
+CREATE INDEX "idx_user_mediaGroup_groupId_sender_receiver" ON "user_mediaGroup"("meetingId", "groupId", "sender", "receiver");
+CREATE OR REPLACE VIEW "v_user_mediaGroup" AS SELECT umg.*, mg."mediaType"
+FROM "user_mediaGroup" umg
+JOIN "mediaGroup" mg ON mg."meetingId" = umg."meetingId" AND mg."groupId" = umg."groupId";
 
 -- Workaround to prevent Hasura from appending "OR IS NULL" to filters on view columns
 -- By marking certain columns in views as NOT NULL, Hasura treats them as non-nullable and avoids adding unnecessary null checks

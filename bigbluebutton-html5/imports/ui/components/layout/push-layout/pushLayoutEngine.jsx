@@ -59,6 +59,7 @@ const propTypes = {
   meetingPresentationIsOpen: PropTypes.bool,
   meetingLayoutUpdatedAt: PropTypes.number,
   presentationIsOpen: PropTypes.bool,
+  presentationContentUpdatedAt: PropTypes.number,
   presentationVideoRate: PropTypes.number,
   pushLayout: PropTypes.bool,
   pushLayoutMeeting: PropTypes.bool,
@@ -71,6 +72,7 @@ const propTypes = {
   setLocalSettings: PropTypes.func.isRequired,
   hasMeetingLayout: PropTypes.bool,
   meetingLayoutSetByUserId: PropTypes.string,
+  isChatEnabled: PropTypes.bool,
 };
 
 const PushLayoutEngine = (props) => {
@@ -100,6 +102,7 @@ const PushLayoutEngine = (props) => {
     isPresenter,
     layoutContextDispatch,
     meetingLayoutUpdatedAt,
+    presentationContentUpdatedAt,
     presentationIsOpen,
     presentationVideoRate,
     pushLayout,
@@ -330,7 +333,8 @@ const PushLayoutEngine = (props) => {
       || cameraPosition !== prevProps.cameraPosition
       || focusedCamera !== prevProps.focusedCamera
       || enforceLayoutResult !== prevProps.enforceLayoutResult
-      || !equalDouble(presentationVideoRate, prevProps.presentationVideoRate);
+      || !equalDouble(presentationVideoRate, prevProps.presentationVideoRate)
+      || presentationContentUpdatedAt !== prevProps.presentationContentUpdatedAt;
 
     if (pushLayoutMeeting !== undefined
       && pushLayout !== prevProps.pushLayout
@@ -440,7 +444,10 @@ const PushLayoutEngineContainer = (props) => {
     setByUserId: meetingLayoutSetByUserId,
   } = (currentMeeting?.layout || {});
 
-  const { isOpen: presentationIsOpen } = presentationInput;
+  const {
+    isOpen: presentationIsOpen,
+    contentUpdatedAt: presentationContentUpdatedAt,
+  } = presentationInput;
 
   const { data: currentUserData, loading: enforcedLayoutLoading } = useCurrentUser((user) => ({
     enforceLayout: user.sessionCurrent?.enforceLayout,
@@ -503,6 +510,7 @@ const PushLayoutEngineContainer = (props) => {
         isChatEnabled,
         layoutContextDispatch,
         meetingLayoutUpdatedAt,
+        presentationContentUpdatedAt,
         presentationIsOpen,
         presentationVideoRate,
         pushLayout,

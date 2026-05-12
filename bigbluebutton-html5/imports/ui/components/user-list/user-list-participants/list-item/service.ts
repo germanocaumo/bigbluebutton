@@ -1,7 +1,6 @@
 import Auth from '/imports/ui/services/auth';
 import { MutationFunction } from '@apollo/client';
 import { IntlShape, defineMessages } from 'react-intl';
-import getFromUserSettings from '/imports/ui/services/users-settings';
 import { User } from '/imports/ui/Types/user';
 import {
   LockSettings,
@@ -153,25 +152,19 @@ export const generateActionsPermissions = (
   const isSubjectUserModerator = subjectUser.isModerator;
   const isSubjectUserGuest = subjectUser.guest;
   const isSubjectUserBot = subjectUser.bot;
-  // Breakout rooms mess up with role permissions
-  // A breakout room user that has a moderator role in it's parent room
-  const parentRoomModerator = getFromUserSettings('bbb_parent_room_moderator', false);
   const hasAuthority = currentUserIsModerator || amISubjectUser;
 
   const userChatIsLocked = currentUserLocked && lockSettings?.disablePrivateChat;
-  const isBreakoutPrivateChatLocked = isBreakout && lockSettings?.disablePrivateChat;
   const preventSelfChat = !amISubjectUser;
   const moderatorOverride = currentUserIsModerator
     && !amISubjectUser && !isDialInUser && isPrivateChatEnabled;
   const regularUserCondition = (isPrivateChatEnabled
     && isChatEnabled
     && !lockSettings?.disablePrivateChat
-    && !isDialInUser
-    && !isBreakout)
+    && !isDialInUser)
     || currentUserIsModerator;
   const allowedToChatPrivately = preventSelfChat
     && (moderatorOverride || regularUserCondition || !userChatIsLocked)
-    && !isBreakoutPrivateChatLocked
     && type === 'participant';
 
   const allowedToMuteAudio = hasAuthority
@@ -179,7 +172,6 @@ export const generateActionsPermissions = (
     && !isMuted
     && !subjectUserVoice?.listenOnly
     && !isSubjectUserBot
-    && !isBreakout
     && (type === 'participant' || type === 'raised-hand');
 
   const allowedToUnmuteAudio = hasAuthority
@@ -188,7 +180,6 @@ export const generateActionsPermissions = (
     && isMuted
     && (amISubjectUser || usersPolicies?.allowModsToUnmuteUsers)
     && !lockSettings?.disableMic
-    && !isBreakout
     && (type === 'participant' || type === 'raised-hand');
 
   const allowedToChangeWhiteboardAccess = currentUserIsPresenter
@@ -197,7 +188,7 @@ export const generateActionsPermissions = (
       && !isDialInUser
       && (type === 'participant' || type === 'raised-hand');
 
-  const allowedToSetPresenter = amIModerator
+  const allowedToSetPresenter = (amIModerator || isBreakout)
       && !subjectUser.presenter
       && !isSubjectUserBot
       && !isDialInUser
@@ -206,14 +197,12 @@ export const generateActionsPermissions = (
   // if currentUser is a moderator, allow removing other users
   const allowedToRemove = amIModerator
     && !amISubjectUser
-    && (!isBreakout || parentRoomModerator)
     && (type === 'participant' || type === 'raised-hand');
 
   const allowedToPromote = amIModerator
     && !amISubjectUser
     && !isSubjectUserModerator
     && !isDialInUser
-    && !isBreakout
     && !isSubjectUserBot
     && !(isSubjectUserGuest && usersPolicies?.authenticatedGuest && !usersPolicies?.allowPromoteGuestToModerator)
     && (type === 'participant' || type === 'raised-hand');
@@ -222,7 +211,6 @@ export const generateActionsPermissions = (
     && !amISubjectUser
     && isSubjectUserModerator
     && !isDialInUser
-    && !isBreakout
     && !isSubjectUserBot
     && !(isSubjectUserGuest && usersPolicies?.authenticatedGuest && !usersPolicies?.allowPromoteGuestToModerator)
     && (type === 'participant' || type === 'raised-hand');

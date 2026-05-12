@@ -11,6 +11,7 @@ import browserInfo from '/imports/utils/browserInfo';
 import { SCREENSHARE_SUBSCRIPTION } from './queries';
 import useDeduplicatedSubscription from '../../core/hooks/useDeduplicatedSubscription';
 import useMeeting from '../../core/hooks/useMeeting';
+import { liveKitScreenshareHasAudioVar } from './livekit-screenshare-state';
 
 let screenShareBridge = sfuScreenShareBridge;
 
@@ -46,11 +47,6 @@ export const setBridge = (bridgeName) => {
 };
 
 export const SCREENSHARE_MEDIA_ELEMENT_NAME = 'screenshareVideo';
-
-export const DEFAULT_SCREENSHARE_STATS_TYPES = [
-  'outbound-rtp',
-  'inbound-rtp',
-];
 
 export const CONTENT_TYPE_CAMERA = 'camera';
 export const CONTENT_TYPE_SCREENSHARE = 'screenshare';
@@ -258,8 +254,13 @@ export const useShouldEnableVolumeControl = () => {
   const SCREENSHARE_CONFIG = window.meetingClientSettings.public.kurento.screenshare;
   const VOLUME_CONTROL_ENABLED = SCREENSHARE_CONFIG.enableVolumeControl;
   const hasAudio = useScreenshareHasAudio();
+  // When LiveKit is the screenshare bridge, server-side hasAudio is unreliable
+  // (always true because it can't be determined at signaling time).
+  // Use client-side ScreenShareAudio track detection instead.
+  const liveKitHasAudio = useReactiveVar(liveKitScreenshareHasAudioVar);
+  const isLiveKit = screenShareBridge?.bridgeName === 'livekit';
 
-  return VOLUME_CONTROL_ENABLED && hasAudio;
+  return VOLUME_CONTROL_ENABLED && hasAudio && (!isLiveKit || liveKitHasAudio);
 };
 
 export const useShowButtonForNonPresenters = () => {
@@ -327,7 +328,11 @@ export const shareScreen = async (
     let stream;
     let contentType = CONTENT_TYPE_SCREENSHARE;
     if (options.stream == null) {
-      stream = await BridgeService.getScreenStream();
+      const isLiveKit = screenShareBridge.bridgeName === 'livekit';
+      const constraints = isLiveKit
+        ? window.meetingClientSettings.public.media?.livekit?.screenshare?.constraints
+        : undefined;
+      stream = await BridgeService.getScreenStream(constraints);
     } else {
       contentType = CONTENT_TYPE_CAMERA;
       stream = options.stream;
@@ -389,9 +394,8 @@ export const screenShareEndAlert = () => AudioService
    * For more information see:
    *  - https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/getStats
    *  - https://developer.mozilla.org/en-US/docs/Web/API/RTCStatsReport
-
-   * @param {Array[String]} statsType - An array containing valid RTCStatsType
-   *                                    values to include in the return object
+   * @param {Array} [additionalStatsTypes] - A list of additional stats types to be included
+   * in the parsing.
    *
    * @returns {Object} The information about each active screen sharing peer.
    *          The returned format follows the format returned by video's service
@@ -401,30 +405,8 @@ export const screenShareEndAlert = () => AudioService
    *            peerIdString: RTCStatsReport
    *          }
    */
-export const getStats = async (statsTypes = DEFAULT_SCREENSHARE_STATS_TYPES) => {
-  const screenshareStats = {};
-  let stats = null;
-
-  if (typeof screenShareBridge.getStats === 'function') {
-    stats = await screenShareBridge.getStats();
-  } else {
-    const peer = screenShareBridge.getPeerConnection();
-
-    if (!peer) return null;
-
-    stats = await peer.getStats();
-  }
-
-  if (!stats) return null;
-
-  stats.forEach((stat) => {
-    if (statsTypes.includes(stat.type) && (!stat.kind || stat.kind === 'video')) {
-      screenshareStats[stat.type] = stat;
-    }
-  });
-
-  return { screenshareStats };
-};
+export const getStats = (additionalStatsTypes = []) => (
+  screenShareBridge.getStats(additionalStatsTypes));
 
 export default {
   SCREENSHARE_MEDIA_ELEMENT_NAME,

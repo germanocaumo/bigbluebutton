@@ -23,6 +23,7 @@ interface ChatMessageHeaderProps {
   deleteTime: Date | null;
   editTime: Date | null;
   role: string;
+  actions?: React.ReactNode;
 }
 
 const ChatMessageHeader: React.FC<ChatMessageHeaderProps> = ({
@@ -33,6 +34,7 @@ const ChatMessageHeader: React.FC<ChatMessageHeaderProps> = ({
   deleteTime,
   editTime,
   role,
+  actions,
 }) => {
   const intl = useIntl();
   if (sameSender) return null;
@@ -50,9 +52,14 @@ const ChatMessageHeader: React.FC<ChatMessageHeaderProps> = ({
             </Styled.ChatUserOffline>
           )
         }
+        {actions && (
+          <Styled.HeaderActions>
+            {actions}
+          </Styled.HeaderActions>
+        )}
         <Styled.Center />
         {!deleteTime && editTime && (
-          <Tooltip title={intl.formatTime(editTime, { hour12: false })}>
+          <Tooltip title={intl.formatTime(editTime)}>
             <Styled.EditLabel data-test="chatMessageEditedLabel">
               <Icon iconName="pen_tool" />
               <span>{intl.formatMessage(intlMessages.edited)}</span>
@@ -65,7 +72,7 @@ const ChatMessageHeader: React.FC<ChatMessageHeaderProps> = ({
           </Styled.EditLabel>
         )}
         <Styled.ChatTime>
-          <FormattedTime value={dateTime} hour12={false} />
+          <FormattedTime value={dateTime} />
         </Styled.ChatTime>
       </Styled.ChatHeaderText>
     </Styled.HeaderContent>

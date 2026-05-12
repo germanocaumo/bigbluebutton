@@ -6,7 +6,6 @@ import cp from 'child_process';
 import WorkerStarter from '../lib/utils/worker-starter.js';
 import {workerData} from 'worker_threads';
 import path from 'path';
-import {pathToFileURL} from 'url';
 import sanitize from 'sanitize-filename';
 import redis from 'redis';
 import {PresAnnStatusMsg} from '../lib/utils/message-builder.js';
@@ -43,6 +42,44 @@ const statusUpdate = new PresAnnStatusMsg(exportJob,
  */
 function toPx(pt) {
   return (pt / config.process.pointsPerInch) * config.process.pixelsPerInch;
+}
+
+
+/**
+ * Returns the MIME type for a supported slide background format.
+ *
+ * @param {string} backgroundFormat - The slide background file extension.
+ * @return {string} The MIME type for the background image.
+ */
+function getBackgroundMimeType(backgroundFormat) {
+  switch (backgroundFormat) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'svg':
+      return 'image/svg+xml';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
+/**
+ * Builds a data URI for a slide background.
+ *
+ * Embedding the background avoids CairoSVG external file access restrictions,
+ * while keeping the conversion compatible with older CairoSVG versions.
+ *
+ * @param {string} backgroundFile - Absolute path to the background file.
+ * @param {string} backgroundFormat - The slide background file extension.
+ * @return {string} A data URI containing the background image.
+ */
+function getBackgroundDataURI(backgroundFile, backgroundFormat) {
+  const mimeType = getBackgroundMimeType(backgroundFormat);
+  const backgroundData = fs.readFileSync(backgroundFile).toString('base64');
+
+  return `data:${mimeType};base64,${backgroundData}`;
 }
 
 /**
@@ -381,10 +418,12 @@ async function processPresentationAnnotations() {
 
     const backgroundFile = path.join(dropbox,
         `slide${currentSlide.page}.${backgroundFormat}`);
+    const backgroundDataURI = getBackgroundDataURI(backgroundFile,
+        backgroundFormat);
 
     // Add the image element
     canvas
-        .image(pathToFileURL(backgroundFile).href)
+        .image(backgroundDataURI)
         .size(scaledWidth, scaledHeight);
 
     // Add a group element with class 'whiteboard'

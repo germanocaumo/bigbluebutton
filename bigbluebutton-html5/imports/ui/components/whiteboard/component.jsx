@@ -663,7 +663,7 @@ const Whiteboard = React.memo((props) => {
       return;
     }
 
-    if ((isPresenterRef.current || viewerCanPanRef.current) && event.keyCode === KEYS.SPACE && tlEditorRef.current?.getCurrentToolId() !== 'hand') {
+    if ((isPresenterRef.current || viewerCanPanRef.current) && event.key === KEYS.SPACE && tlEditorRef.current?.getCurrentToolId() !== 'hand') {
       event.preventDefault();
       event.stopPropagation();
       previousTool.current = tlEditorRef.current?.getCurrentToolId();

@@ -22,6 +22,21 @@ import {
 const defaultZoomLevel = '100%';
 
 export class Presentation extends MultiUsers {
+  async expectPresentationFullscreenAfter(toggleFullscreen: () => Promise<void>, description: string) {
+    await this.modPage.waitForSelector(e.whiteboard, ELEMENT_WAIT_LONGER_TIME);
+    const presentationLocator = this.modPage.page.locator(e.presentationContainer);
+    const height = parseInt(await getCurrentPresentationHeight(presentationLocator), 10);
+
+    await toggleFullscreen();
+
+    await expect
+      .poll(async () => parseInt(await getCurrentPresentationHeight(presentationLocator), 10), {
+        message: description,
+        timeout: ELEMENT_WAIT_LONGER_TIME,
+      })
+      .toBeGreaterThan(height);
+  }
+
   async skipSlide() {
     await this.modPage.hasElement(
       e.whiteboard,
@@ -42,6 +57,49 @@ export class Presentation extends MultiUsers {
     await this.modPage.page.waitForTimeout(1000);
 
     await checkSvgIndex(this.modPage, '/svg/1');
+  }
+
+  async presentationKeyboardShortcuts() {
+    await this.modPage.waitForSelector(e.whiteboard, ELEMENT_WAIT_LONGER_TIME);
+    await this.modPage.waitForSelector(e.skipSlide);
+    await checkSvgIndex(this.modPage, '/svg/1');
+
+    const whiteboardLocator = this.modPage.page.locator(e.whiteboard);
+    const handToolLocator = this.modPage.page.locator(e.wbHandButton);
+
+    const expectCurrentSlide = async (svgPath: string) => {
+      await expect
+        .poll(async () => (await getSlideOuterHtml(this.modPage))?.includes(svgPath) ?? false, {
+          message: `should display slide ${svgPath}`,
+          timeout: ELEMENT_WAIT_LONGER_TIME,
+        })
+        .toBeTruthy();
+    };
+
+    await whiteboardLocator.click();
+    await this.modPage.page.keyboard.press('ArrowRight');
+    await expectCurrentSlide('/svg/2');
+
+    await whiteboardLocator.click();
+    await this.modPage.page.keyboard.press('ArrowLeft');
+    await expectCurrentSlide('/svg/1');
+
+    await whiteboardLocator.click();
+    await this.modPage.page.keyboard.down('Space');
+    await expect(handToolLocator, 'should temporarily select the pan tool while holding Space').toHaveAttribute(
+      'data-state',
+      'selected',
+    );
+    await this.modPage.page.keyboard.up('Space');
+    await expect(
+      handToolLocator,
+      'should restore the previous whiteboard tool after releasing Space',
+    ).not.toHaveAttribute('data-state', 'selected');
+
+    await this.expectPresentationFullscreenAfter(async () => {
+      await whiteboardLocator.click();
+      await this.modPage.page.keyboard.press('Enter');
+    }, 'should toggle presentation fullscreen with the Enter shortcut');
   }
 
   async shareCameraAsContent() {
@@ -110,7 +168,7 @@ export class Presentation extends MultiUsers {
         e.shareExternalVideoBtn,
         'should not display the option to share an external video, since is deactivated',
       );
-      return
+      return;
     }
     await this.modPage.waitAndClick(e.shareExternalVideoBtn);
     await this.modPage.hasElement(
@@ -423,7 +481,7 @@ export class Presentation extends MultiUsers {
     //! await this.modPage.handleDownload(this.modPage.page.locator(e.presentationDownloadBtn), testInfo);
     //! await this.userPage.handleDownload(this.userPage.page.locator(e.presentationDownloadBtn), testInfo);
     // disable original presentation download
-    
+
     await this.modPage.waitAndClick(e.managePresentations);
     await this.modPage.waitAndClick(e.presentationOptionsDownloadBtn);
     await this.modPage.waitAndClick(e.disableOriginalPresentationDownloadBtn);
@@ -458,7 +516,7 @@ export class Presentation extends MultiUsers {
     }
     await this.modPage.waitAndClick(e.sendPresentationInCurrentStateBtn);
     await this.modPage.hasElement(e.downloadPresentationToast, 'should display the download presentation toast');
-     await this.userPage.hasElement(
+    await this.userPage.hasElement(
       e.downloadPresentation,
       'should display the download presentation button for the attendee',
       ELEMENT_WAIT_EXTRA_LONG_TIME,
@@ -472,7 +530,10 @@ export class Presentation extends MultiUsers {
     await this.modPage.waitAndClick(e.mediaAreaButton);
     await this.modPage.waitAndClick(e.managePresentations);
     await this.modPage.waitAndClick(e.removePresentation);
-    await this.modPage.hasElementDisabled(e.sharePresentationButton, 'should disable the share presentation button when there is no presentation');
+    await this.modPage.hasElementDisabled(
+      e.sharePresentationButton,
+      'should disable the share presentation button when there is no presentation',
+    );
 
     await this.modPage.wasRemoved(e.whiteboard, 'should not display the whiteboard for the moderator');
     await this.modPage.wasRemoved(
@@ -504,8 +565,8 @@ export class Presentation extends MultiUsers {
       2,
       'should display both default and uploaded presentation on the manage presentations modal',
     );
-    await this.modPage.waitAndClick(e.removePresentation);  // remove first presentation
-    await this.modPage.waitAndClick(e.removePresentation);  // remove second presentation
+    await this.modPage.waitAndClick(e.removePresentation); // remove first presentation
+    await this.modPage.waitAndClick(e.removePresentation); // remove second presentation
 
     await this.modPage.wasRemoved(e.whiteboard, 'should not display the whiteboard for the moderator');
     await this.modPage.wasRemoved(
@@ -557,20 +618,10 @@ export class Presentation extends MultiUsers {
   }
 
   async presentationFullscreen() {
-    await this.modPage.waitForSelector(e.whiteboard, ELEMENT_WAIT_LONGER_TIME);
-    const presentationLocator = this.modPage.page.locator(e.presentationContainer);
-    const height = parseInt(await getCurrentPresentationHeight(presentationLocator), 10);
-
-    await this.modPage.waitAndClick(e.whiteboardOptionsButton);
-    await this.modPage.waitAndClick(e.presentationFullscreen);
-
-    // Gets fullscreen mode height
-    const heightFullscreen = parseInt(await getCurrentPresentationHeight(presentationLocator), 10);
-
-    await expect(
-      heightFullscreen,
-      'should the height of the presentation fullscreen to be greater than the normal presentation height',
-    ).toBeGreaterThan(height);
+    await this.expectPresentationFullscreenAfter(async () => {
+      await this.modPage.waitAndClick(e.whiteboardOptionsButton);
+      await this.modPage.waitAndClick(e.presentationFullscreen);
+    }, 'should the height of the presentation fullscreen to be greater than the normal presentation height');
   }
 
   async presentationSnapshot() {
